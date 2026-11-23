@@ -1,0 +1,944 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Carlos Futebol Clube2 | Site Oficial</title>
+    <!-- Tailwind CSS para estilização rápida e responsiva -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome para Ícones -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        cfcBlue: '#0047AB',      // Azul Principal Vibrante
+                        cfcDarkBlue: '#002868',  // Azul Escuro para contrastes
+                        cfcLightBlue: '#E6F0FF', // Azul Claro para fundos suaves
+                        cfcAccent: '#00A3FF',    // Azul Ciano chamativo para detalhes
+                    },
+                    fontFamily: {
+                        sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+                        display: ['"Oswald"', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Barra de rolagem personalizada */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #f1f5f9; }
+        ::-webkit-scrollbar-thumb { background: #0047AB; border-radius: 3px; }
+        
+        .sidebar-link.active {
+            background-color: #ffffff;
+            color: #0047AB;
+            font-weight: 700;
+            border-right: 4px solid #00A3FF;
+        }
+        .fade-in { animation: fadeIn 0.3s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 flex h-screen overflow-hidden">
+
+    <!-- ========================================== -->
+    <!-- BARRA LATERAL ESQUERDA (MENU PRINCIPAL)    -->
+    <!-- ========================================== -->
+    <aside class="w-72 bg-cfcBlue text-white flex flex-col h-full shadow-2xl z-30 flex-shrink-0 overflow-y-auto">
+        
+        <!-- 1. SELETOR DE IDIOMAS (PT, EN, ES, FR) -->
+        <div class="p-3 bg-cfcDarkBlue border-b border-blue-800 flex justify-between items-center text-xs font-bold">
+            <span class="text-blue-300 uppercase tracking-wider"><i class="fas fa-globe mr-1"></i> Idioma:</span>
+            <div class="flex space-x-1" id="lang-selector">
+                <button onclick="setLang('pt')" class="lang-btn px-2 py-1 rounded bg-white text-cfcBlue transition">PT</button>
+                <button onclick="setLang('en')" class="lang-btn px-2 py-1 rounded hover:bg-blue-700 transition">EN</button>
+                <button onclick="setLang('es')" class="lang-btn px-2 py-1 rounded hover:bg-blue-700 transition">ES</button>
+                <button onclick="setLang('fr')" class="lang-btn px-2 py-1 rounded hover:bg-blue-700 transition">FR</button>
+            </div>
+        </div>
+
+        <!-- 2. LOGOTIPO DO CLUBE -->
+        <div class="p-6 flex flex-col items-center text-center border-b border-blue-700 cursor-pointer" onclick="navigate('home')">
+            <div class="w-20 h-20 bg-white rounded-full flex items-center justify-center shadow-lg border-4 border-cfcAccent mb-3">
+                <div class="text-cfcBlue font-display font-bold text-2xl tracking-tighter leading-none">
+                    CFC<br><span class="text-[10px] font-sans tracking-widest text-cfcDarkBlue">1998</span>
+                </div>
+            </div>
+            <h1 class="font-display text-xl font-bold tracking-wide uppercase">Carlos Futebol Clube</h1>
+            <p class="text-xs text-blue-200 mt-1">Orgulho & Glória • Estádio do Teca</p>
+        </div>
+
+        <!-- 3. BARRA DE PESQUISA NO MENU -->
+        <div class="p-4 border-b border-blue-700">
+            <div class="relative">
+                <input type="text" id="menu-search" onkeyup="handleSearch(this.value)" placeholder="Pesquisar no clube..." 
+                       class="w-full bg-cfcDarkBlue text-white placeholder-blue-300 text-sm rounded-lg pl-9 pr-3 py-2 focus:outline-none focus:ring-2 focus:ring-cfcAccent">
+                <i class="fas fa-search absolute left-3 top-2.5 text-blue-300 text-sm"></i>
+            </div>
+        </div>
+
+        <!-- 4. NAVEGAÇÃO PRINCIPAL À ESQUERDA -->
+        <nav class="flex-1 py-2 space-y-1 text-sm font-medium">
+            
+            <!-- Início -->
+            <button onclick="navigate('home')" id="nav-home" class="sidebar-link active w-full flex items-center px-6 py-3 hover:bg-blue-700 transition text-left">
+                <i class="fas fa-home w-6"></i> <span data-i18n="home">Início</span>
+            </button>
+
+            <!-- Clube (Com Submenu) -->
+            <div>
+                <button onclick="toggleSubmenu('submenu-clube')" class="w-full flex items-center justify-between px-6 py-3 hover:bg-blue-700 transition text-left">
+                    <span><i class="fas fa-shield-alt w-6"></i> <span data-i18n="club">Clube</span></span>
+                    <i class="fas fa-chevron-down text-xs transition-transform" id="icon-submenu-clube"></i>
+                </button>
+                <div id="submenu-clube" class="hidden bg-cfcDarkBlue py-1 text-xs text-blue-100">
+                    <button onclick="navigate('clube-historia')" class="w-full text-left pl-12 pr-4 py-2 hover:text-white hover:bg-blue-900">História & Palmarés</button>
+                    <button onclick="navigate('clube-estadio')" class="w-full text-left pl-12 pr-4 py-2 hover:text-white hover:bg-blue-900">Estádio Nacional do Teca</button>
+                    <button onclick="navigate('clube-instalacoes')" class="w-full text-left pl-12 pr-4 py-2 hover:text-white hover:bg-blue-900">Instalações</button>
+                    <button onclick="navigate('clube-presidente')" class="w-full text-left pl-12 pr-4 py-2 hover:text-white hover:bg-blue-900">Presidente & Institucional</button>
+                </div>
+            </div>
+
+            <!-- Futebol (Com Submenu) -->
+            <div>
+                <button onclick="toggleSubmenu('submenu-futebol')" class="w-full flex items-center justify-between px-6 py-3 hover:bg-blue-700 transition text-left">
+                    <span><i class="fas fa-futbol w-6"></i> <span data-i18n="football">Futebol</span></span>
+                    <i class="fas fa-chevron-down text-xs transition-transform" id="icon-submenu-futebol"></i>
+                </button>
+                <div id="submenu-futebol" class="hidden bg-cfcDarkBlue py-1 text-xs text-blue-100">
+                    <button onclick="navigate('futebol-principal')" class="w-full text-left pl-12 pr-4 py-2 hover:text-white hover:bg-blue-900 font-semibold text-cfcAccent">Equipa Principal (Sénior)</button>
+                    <button onclick="navigate('futebol-b')" class="w-full text-left pl-12 pr-4 py-2 hover:text-white hover:bg-blue-900">Equipa B</button>
+                    <button onclick="navigate('futebol-formacao')" class="w-full text-left pl-12 pr-4 py-2 hover:text-white hover:bg-blue-900">Formação (Caçulinha, Juvenis, Júnior)</button>
+                </div>
+            </div>
+
+            <!-- Modalidades (Com Submenu) -->
+            <div>
+                <button onclick="toggleSubmenu('submenu-modalidades')" class="w-full flex items-center justify-between px-6 py-3 hover:bg-blue-700 transition text-left">
+                    <span><i class="fas fa-medal w-6"></i> <span data-i18n="sports">Modalidades</span></span>
+                    <i class="fas fa-chevron-down text-xs transition-transform" id="icon-submenu-modalidades"></i>
+                </button>
+                <div id="submenu-modalidades" class="hidden bg-cfcDarkBlue py-1 text-xs text-blue-100">
+                    <button onclick="navigate('modalidades')" class="w-full text-left pl-12 pr-4 py-2 hover:text-white hover:bg-blue-900">Futebol (Todas Categorias)</button>
+                    <button onclick="navigate('modalidades')" class="w-full text-left pl-12 pr-4 py-2 hover:text-white hover:bg-blue-900">Andebol</button>
+                    <button onclick="navigate('modalidades')" class="w-full text-left pl-12 pr-4 py-2 hover:text-white hover:bg-blue-900">Basquetebol</button>
+                </div>
+            </div>
+
+            <!-- Notícias -->
+            <button onclick="navigate('noticias')" id="nav-noticias" class="sidebar-link w-full flex items-center px-6 py-3 hover:bg-blue-700 transition text-left">
+                <i class="fas fa-newspaper w-6"></i> <span data-i18n="news">Notícias</span>
+            </button>
+
+            <!-- Transferências -->
+            <button onclick="navigate('transferencias')" id="nav-transferencias" class="sidebar-link w-full flex items-center px-6 py-3 hover:bg-blue-700 transition text-left">
+                <i class="fas fa-exchange-alt w-6"></i> <span data-i18n="transfers">Transferências</span>
+            </button>
+
+            <!-- Agenda -->
+            <button onclick="navigate('agenda')" id="nav-agenda" class="sidebar-link w-full flex items-center px-6 py-3 hover:bg-blue-700 transition text-left">
+                <i class="fas fa-calendar-alt w-6"></i> <span data-i18n="schedule">Agenda & Diretos</span>
+            </button>
+
+            <!-- Loja -->
+            <button onclick="navigate('loja')" id="nav-loja" class="sidebar-link w-full flex items-center px-6 py-3 hover:bg-blue-700 transition text-left">
+                <i class="fas fa-shopping-bag w-6"></i> <span data-i18n="store">Loja Oficial</span>
+            </button>
+
+            <!-- Bilhetes -->
+            <button onclick="navigate('bilhetes')" id="nav-bilhetes" class="sidebar-link w-full flex items-center px-6 py-3 hover:bg-blue-700 transition text-left">
+                <i class="fas fa-ticket-alt w-6"></i> <span data-i18n="tickets">Bilhetes</span>
+            </button>
+
+            <!-- Sócio -->
+            <button onclick="navigate('socio')" id="nav-socio" class="sidebar-link w-full flex items-center px-6 py-3 hover:bg-blue-700 transition text-left">
+                <i class="fas fa-id-card w-6"></i> <span data-i18n="member">Área de Sócio</span>
+            </button>
+
+            <!-- CFC TV & Podcast -->
+            <button onclick="navigate('multimedia')" id="nav-multimedia" class="sidebar-link w-full flex items-center px-6 py-3 hover:bg-blue-700 transition text-left">
+                <i class="fas fa-podcast w-6"></i> <span>Vídeos & Podcast</span>
+            </button>
+        </nav>
+
+        <!-- 5. BOTÃO LOGIN / BACK-OFFICE / CRM -->
+        <div class="p-4 bg-cfcDarkBlue border-t border-blue-800 space-y-2">
+            <button onclick="openLoginModal()" class="w-full bg-white text-cfcBlue font-bold py-2.5 px-4 rounded-lg shadow hover:bg-blue-50 transition flex items-center justify-center text-sm">
+                <i class="fas fa-user-lock mr-2"></i> Login / Back-Office & CRM
+            </button>
+        </div>
+    </aside>
+
+    <!-- ========================================== -->
+    <!-- ÁREA DE CONTEÚDO PRINCIPAL (DIREITA)       -->
+    <!-- ========================================== -->
+    <main class="flex-1 h-full overflow-y-auto bg-slate-50 relative" id="main-content">
+        
+        <!-- Barra Superior de Destaque Rápido -->
+        <header class="bg-white border-b border-slate-200 px-8 py-3 flex justify-between items-center sticky top-0 z-20 shadow-sm">
+            <div class="flex items-center space-x-3 text-xs font-semibold">
+                <span class="bg-cfcBlue text-white px-2.5 py-1 rounded uppercase tracking-wider">Próximo Jogo</span>
+                <span class="text-slate-700">Carlos Futebol Clube <span class="text-cfcBlue font-bold">VS</span> Petro de Luanda</span>
+                <span class="text-slate-400">|</span>
+                <span class="text-slate-500"><i class="fas fa-map-marker-alt text-cfcBlue mr-1"></i> Estádio Nacional do Teca</span>
+            </div>
+            <div class="flex items-center space-x-4">
+                <button onclick="navigate('bilhetes')" class="text-xs bg-cfcAccent text-white font-bold px-3 py-1.5 rounded-full hover:bg-blue-600 transition">
+                    Comprar Bilhete
+                </button>
+                <div id="user-status-badge" class="hidden text-xs font-bold text-cfcBlue bg-cfcLightBlue px-3 py-1.5 rounded-full">
+                    <i class="fas fa-circle text-green-500 text-[8px] mr-1"></i> Admin Logado
+                </div>
+            </div>
+        </header>
+
+        <!-- CONTAINER DINÂMICO DAS PÁGINAS -->
+        <div id="view-container" class="p-8 max-w-7xl mx-auto">
+            <!-- O conteúdo é injetado via JavaScript -->
+        </div>
+
+        <!-- RODAPÉ -->
+        <footer class="bg-cfcDarkBlue text-white mt-16 py-10 px-8 border-t-4 border-cfcAccent">
+            <div class="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-8 text-sm">
+                <div>
+                    <h3 class="font-display text-xl font-bold uppercase mb-2">Carlos Futebol Clube</h3>
+                    <p class="text-blue-200 text-xs leading-relaxed">Sede Oficial: Estádio Nacional do Teca.<br>Formando campeões no Futebol, Andebol e Basquetebol.</p>
+                </div>
+                <div>
+                    <h4 class="font-bold uppercase text-cfcAccent mb-2 text-xs">Links Rápidos</h4>
+                    <ul class="space-y-1 text-xs text-blue-100">
+                        <li><a href="#" onclick="navigate('clube-estadio')" class="hover:underline">Estádio Nacional do Teca</a></li>
+                        <li><a href="#" onclick="navigate('socio')" class="hover:underline">Torna-te Sócio</a></li>
+                        <li><a href="#" onclick="navigate('multimedia')" class="hover:underline">CFC Podcast & Vídeos</a></li>
+                    </ul>
+                </div>
+                <div>
+                    <h4 class="font-bold uppercase text-cfcAccent mb-2 text-xs">Redes Sociais & Contacto</h4>
+                    <div class="flex space-x-4 text-lg mt-2">
+                        <a href="#" class="hover:text-cfcAccent"><i class="fab fa-facebook"></i></a>
+                        <a href="#" class="hover:text-cfcAccent"><i class="fab fa-instagram"></i></a>
+                        <a href="#" class="hover:text-cfcAccent"><i class="fab fa-youtube"></i></a>
+                        <a href="#" class="hover:text-cfcAccent"><i class="fab fa-whatsapp"></i></a>
+                    </div>
+                </div>
+            </div>
+        </footer>
+    </main>
+
+    <!-- ========================================== -->
+    <!-- MODAL DE LOGIN (SÓCIO / BACK-OFFICE / CRM) -->
+    <!-- ========================================== -->
+    <div id="login-modal" class="hidden fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl max-w-md w-full p-8 shadow-2xl border-t-8 border-cfcBlue fade-in">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="font-display text-2xl font-bold text-cfcDarkBlue uppercase">Acesso Reservado</h2>
+                <button onclick="closeLoginModal()" class="text-slate-400 hover:text-slate-700"><i class="fas fa-times text-xl"></i></button>
+            </div>
+            <p class="text-xs text-slate-500 mb-6">Selecione o perfil de acesso para entrar no portal de sócio ou gerir o clube no Back-Office & CRM.</p>
+            
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 uppercase mb-1">E-mail ou Nº de Sócio</label>
+                    <input type="text" id="login-user" value="direcao@carlosfc.ao" class="w-full border border-slate-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:border-cfcBlue">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Palavra-Passe</label>
+                    <input type="password" id="login-pass" value="••••••••" class="w-full border border-slate-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:border-cfcBlue">
+                </div>
+                
+                <div class="pt-2 grid grid-cols-2 gap-3">
+                    <button onclick="loginAs('socio')" class="bg-cfcLightBlue text-cfcBlue font-bold py-3 rounded-lg text-xs hover:bg-blue-200 transition">
+                        <i class="fas fa-user mr-1"></i> Entrar como Sócio
+                    </button>
+                    <button onclick="loginAs('admin')" class="bg-cfcBlue text-white font-bold py-3 rounded-lg text-xs hover:bg-cfcDarkBlue transition shadow-lg">
+                        <i class="fas fa-cogs mr-1"></i> Back-Office & CRM
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- LÓGICA JAVASCRIPT (DADOS, SLIDER, CRM)     -->
+    <!-- ========================================== -->
+    <script>
+        // BASE DE DADOS SIMULADA DO CLUBE (Editável via Back-Office)
+        let clubData = {
+            presidente: "Dr. Carlos Mendes",
+            estadio: "Estádio Nacional do Teca",
+            capacidade: "45.000 Espectadores",
+            slides: [
+                {
+                    tipo: "ENTREVISTA EXCLUSIVA",
+                    jogador: "Mateus 'Furação' Silva — Capitão",
+                    citacao: "«Estamos focados a 100%. No Estádio Nacional do Teca mandamos nós e vamos deixar tudo em campo por esta camisola azul e branca!»",
+                    imagem: "https://images.unsplash.com/photo-1517466787929-bc90951d0974?auto=format&fit=crop&w=1200&q=80",
+                    badge: "Zona Mista • Pós-Treino"
+                },
+                {
+                    tipo: "ANTEVISÃO DO CLÁSSICO",
+                    jogador: "Carlos Futebol Clube VS Petro de Luanda",
+                    citacao: "«Um duelo de gigantes no Estádio Nacional do Teca. Garante já o teu lugar na bancada e apoia a nossa equipa rumo à liderança!»",
+                    imagem: "https://images.unsplash.com/photo-1574629810360-7efbbe195018?auto=format&fit=crop&w=1200&q=80",
+                    badge: "Domingo • 16:00 • Girabola"
+                }
+            ],
+            noticias: [
+                { id: 1, titulo: "Preparação intensiva no Estádio Nacional do Teca para receber o Petro de Luanda", data: "Hoje", cat: "Equipa Principal", img: "https://images.unsplash.com/photo-1431324155629-1a6deb1dec8d?auto=format&fit=crop&w=600&q=80" },
+                { id: 2, titulo: "Escalões de Formação (Caçulinha e Juvenis) vencem torneio regional sem derrotas", data: "Ontem", cat: "Formação", img: "https://images.unsplash.com/photo-1526232761682-d26e03ac148e?auto=format&fit=crop&w=600&q=80" },
+                { id: 3, titulo: "Equipa de Andebol e Basquetebol do Carlos FC apresentam novos reforços", data: "18 Nov", cat: "Modalidades", img: "https://images.unsplash.com/photo-1546519638-68e109498ffc?auto=format&fit=crop&w=600&q=80" }
+            ],
+            transferencias: [
+                { jogador: "Kiala Domingos", posicao: "Avançado", origem: "Desportivo da Huíla", tipo: "Entrada", valor: "Definitivo" },
+                { jogador: "João Paciência", posicao: "Médio Centro", origem: "Formação CFC", tipo: "Promoção Equipa A", valor: "Contrato Profissional" },
+                { jogador: "Rui Pedro", posicao: "Guarda-Redes", origem: "Académica do Lobito", tipo: "Entrada", valor: "Empréstimo" }
+            ],
+            produtos: [
+                { nome: "Equipamento Completo Principal (Azul/Branco)", preco: "25.000 Kz", img: "https://images.unsplash.com/photo-1577212017184-80cc0da11082?auto=format&fit=crop&w=500&q=80" },
+                { nome: "T-Shirt Oficial de Treino CFC", preco: "12.000 Kz", img: "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?auto=format&fit=crop&w=500&q=80" },
+                { nome: "Calções Oficiais Jogo", preco: "9.500 Kz", img: "https://images.unsplash.com/photo-1591195853828-11db59a44f6b?auto=format&fit=crop&w=500&q=80" },
+                { nome: "Cachecol Oficial 'Orgulho do Teca'", preco: "6.000 Kz", img: "https://images.unsplash.com/photo-1520903920243-00d872a2d1c9?auto=format&fit=crop&w=500&q=80" },
+                { nome: "Boné Oficial Carlos FC", preco: "7.500 Kz", img: "https://images.unsplash.com/photo-1588850561407-ed78c282e89b?auto=format&fit=crop&w=500&q=80" }
+            ],
+            sociosCRM: [
+                { id: "CFC-001", nome: "António Manuel", categoria: "Sócio Efetivo", quotas: "Em dia", telemovel: "+244 923 111 222" },
+                { id: "CFC-002", nome: "Maria Fernanda", categoria: "Sócio VIP Teca", quotas: "Em dia", telemovel: "+244 924 333 444" },
+                { id: "CFC-003", nome: "José Alberto", categoria: "Sócio Correspondente", quotas: "Pendente (2 meses)", telemovel: "+244 912 555 666" }
+            ]
+        };
+
+        let currentSlide = 0;
+
+        // TRADUÇÕES BÁSICAS DO MENU (PT, EN, ES, FR)
+        const i18n = {
+            pt: { home: "Início", club: "Clube", football: "Futebol", sports: "Modalidades", news: "Notícias", transfers: "Transferências", schedule: "Agenda & Diretos", store: "Loja Oficial", tickets: "Bilhetes", member: "Área de Sócio" },
+            en: { home: "Home", club: "Club", football: "Football", sports: "Sports", news: "News", transfers: "Transfers", schedule: "Schedule & Live", store: "Official Store", tickets: "Tickets", member: "Members Area" },
+            es: { home: "Inicio", club: "Club", football: "Fútbol", sports: "Deportes", news: "Noticias", transfers: "Fichajes", schedule: "Agenda y Directo", store: "Tienda Oficial", tickets: "Entradas", member: "Área de Socios" },
+            fr: { home: "Accueil", club: "Club", football: "Football", sports: "Disciplines", news: "Actualités", transfers: "Transferts", schedule: "Calendrier & Direct", store: "Boutique Officielle", tickets: "Billetterie", member: "Espace Membre" }
+        };
+
+        function setLang(lang) {
+            document.querySelectorAll('.lang-btn').forEach(btn => {
+                btn.classList.remove('bg-white', 'text-cfcBlue');
+                if(btn.innerText.toLowerCase() === lang) btn.classList.add('bg-white', 'text-cfcBlue');
+            });
+            document.querySelectorAll('[data-i18n]').forEach(el => {
+                const key = el.getAttribute('data-i18n');
+                if(i18n[lang][key]) el.innerText = i18n[lang][key];
+            });
+        }
+
+        function toggleSubmenu(id) {
+            const sub = document.getElementById(id);
+            const icon = document.getElementById('icon-' + id);
+            sub.classList.toggle('hidden');
+            icon.classList.toggle('rotate-180');
+        }
+
+        // NAVEGAÇÃO ENTRE PÁGINAS
+        function navigate(page) {
+            document.querySelectorAll('.sidebar-link').forEach(el => el.classList.remove('active'));
+            const activeNav = document.getElementById('nav-' + page);
+            if(activeNav) activeNav.classList.add('active');
+
+            const container = document.getElementById('view-container');
+            container.innerHTML = ''; // Limpa ecrã
+
+            if (page === 'home') renderHome(container);
+            else if (page.startsWith('clube')) renderClube(container, page);
+            else if (page.startsWith('futebol')) renderFutebol(container, page);
+            else if (page === 'modalidades') renderModalidades(container);
+            else if (page === 'noticias') renderNoticias(container);
+            else if (page === 'transferencias') renderTransferencias(container);
+            else if (page === 'agenda') renderAgenda(container);
+            else if (page === 'loja') renderLoja(container);
+            else if (page === 'bilhetes') renderBilhetes(container);
+            else if (page === 'socio') renderSocio(container);
+            else if (page === 'multimedia') renderMultimedia(container);
+            else if (page === 'backoffice') renderBackOffice(container);
+        }
+
+        // ==========================================
+        // RENDERIZAÇÃO DA PÁGINA INICIAL (SLIDER + ANTEVISÃO)
+        // ==========================================
+        function renderHome(container) {
+            const slide = clubData.slides[currentSlide];
+            container.innerHTML = `
+                <div class="fade-in space-y-10">
+                    <!-- HERO SLIDER COM FOTOGRAFIA, ENTREVISTA E ANTEVISÃO -->
+                    <div class="relative rounded-2xl overflow-hidden shadow-2xl bg-cfcDarkBlue text-white h-[480px] flex items-end">
+                        <img src="${slide.imagem}" class="absolute inset-0 w-full h-full object-cover opacity-55 transition-all duration-700" alt="Jogador CFC">
+                        <div class="absolute inset-0 bg-gradient-to-t from-cfcDarkBlue via-cfcDarkBlue/60 to-transparent"></div>
+                        
+                        <!-- Controles do Slider -->
+                        <div class="absolute top-6 right-6 flex space-x-2 z-10">
+                            <button onclick="changeSlide(-1)" class="w-10 h-10 rounded-full bg-white/20 hover:bg-cfcBlue backdrop-blur flex items-center justify-center transition"><i class="fas fa-chevron-left"></i></button>
+                            <button onclick="changeSlide(1)" class="w-10 h-10 rounded-full bg-white/20 hover:bg-cfcBlue backdrop-blur flex items-center justify-center transition"><i class="fas fa-chevron-right"></i></button>
+                        </div>
+
+                        <div class="relative z-10 p-8 md:p-12 w-full grid grid-cols-1 lg:grid-cols-3 gap-8 items-end">
+                            <div class="lg:col-span-2 space-y-3">
+                                <span class="inline-block bg-cfcAccent text-white text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider">${slide.tipo}</span>
+                                <h2 class="font-display text-3xl md:text-5xl font-bold uppercase leading-tight">${slide.jogador}</h2>
+                                <blockquote class="text-blue-100 text-base md:text-lg italic border-l-4 border-cfcAccent pl-4 py-1">
+                                    ${slide.citacao}
+                                </blockquote>
+                                <p class="text-xs text-blue-300 font-semibold"><i class="fas fa-microphone-alt mr-1"></i> ${slide.badge}</p>
+                            </div>
+
+                            <!-- CARTÃO DE ANTEVISÃO: CARLOS FC VS PETRO DE LUANDA -->
+                            <div class="bg-white text-slate-800 rounded-xl p-5 shadow-xl border-t-4 border-cfcBlue">
+                                <div class="text-center text-[11px] font-bold uppercase text-cfcBlue tracking-widest mb-2">Antevisão Oficial • Girabola</div>
+                                <div class="flex items-center justify-between my-3">
+                                    <div class="text-center w-1/3">
+                                        <div class="w-12 h-12 mx-auto bg-cfcBlue text-white rounded-full flex items-center justify-center font-display font-bold text-sm">CFC</div>
+                                        <p class="font-bold text-xs mt-1">Carlos FC</p>
+                                    </div>
+                                    <div class="text-center w-1/3">
+                                        <span class="font-display text-2xl font-bold text-slate-400">VS</span>
+                                        <p class="text-[10px] font-bold text-slate-500 mt-1">DOM • 16:00</p>
+                                    </div>
+                                    <div class="text-center w-1/3">
+                                        <div class="w-12 h-12 mx-auto bg-yellow-500 text-blue-900 rounded-full flex items-center justify-center font-display font-bold text-sm">APL</div>
+                                        <p class="font-bold text-xs mt-1">Petro Luanda</p>
+                                    </div>
+                                </div>
+                                <p class="text-[11px] text-center text-slate-500 mb-3"><i class="fas fa-stadium mr-1"></i> ${clubData.estadio}</p>
+                                <div class="grid grid-cols-2 gap-2">
+                                    <button onclick="navigate('bilhetes')" class="bg-cfcBlue text-white text-xs font-bold py-2 rounded hover:bg-cfcDarkBlue transition">Bilhetes</button>
+                                    <button onclick="navigate('agenda')" class="bg-cfcLightBlue text-cfcBlue text-xs font-bold py-2 rounded hover:bg-blue-200 transition">Ver em Direto</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- ÚLTIMAS NOTÍCIAS -->
+                    <div>
+                        <div class="flex justify-between items-center mb-6">
+                            <h3 class="font-display text-2xl font-bold text-cfcDarkBlue uppercase border-l-4 border-cfcBlue pl-3">Últimas do Clube</h3>
+                            <button onclick="navigate('noticias')" class="text-sm font-bold text-cfcBlue hover:underline">Ver todas <i class="fas fa-arrow-right ml-1"></i></button>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                            ${clubData.noticias.map(n => `
+                                <div class="bg-white rounded-xl overflow-hidden shadow hover:shadow-lg transition border border-slate-100">
+                                    <img src="${n.img}" class="w-full h-44 object-cover">
+                                    <div class="p-5">
+                                        <span class="text-[11px] font-bold text-cfcBlue uppercase">${n.cat} • ${n.data}</span>
+                                        <h4 class="font-bold text-slate-800 mt-1 leading-snug">${n.titulo}</h4>
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function changeSlide(dir) {
+            currentSlide = (currentSlide + dir + clubData.slides.length) % clubData.slides.length;
+            renderHome(document.getElementById('view-container'));
+        }
+
+        // ==========================================
+        // SECÇÃO: CLUBE (História, Estádio do Teca, Presidente)
+        // ==========================================
+        function renderClube(container, subpage) {
+            container.innerHTML = `
+                <div class="fade-in space-y-8">
+                    <div class="bg-cfcBlue text-white p-8 rounded-2xl shadow-lg">
+                        <h2 class="font-display text-3xl font-bold uppercase">Institucional • Carlos Futebol Clube</h2>
+                        <p class="text-blue-200 text-sm mt-1">Tradição, rigor e paixão pelo desporto nacional.</p>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="bg-white p-6 rounded-xl shadow border-t-4 border-cfcBlue">
+                            <h3 class="font-display text-xl font-bold text-cfcDarkBlue uppercase mb-3"><i class="fas fa-landmark text-cfcBlue mr-2"></i> História & Palmarés</h3>
+                            <p class="text-sm text-slate-600 leading-relaxed mb-4">Fundado com a missão de elevar o futebol e o desporto comunitário ao mais alto nível competitivo, o Carlos Futebol Clube afirma-se pelas suas cores azul e branco como um símbolo de superação.</p>
+                            <ul class="text-xs space-y-2 font-semibold text-slate-700 bg-cfcLightBlue p-4 rounded-lg">
+                                <li><i class="fas fa-trophy text-yellow-500 mr-2"></i> 3x Campeão Provincial</li>
+                                <li><i class="fas fa-trophy text-yellow-500 mr-2"></i> 2x Taça Disciplina & Fair-Play</li>
+                                <li><i class="fas fa-trophy text-yellow-500 mr-2"></i> Campeão Nacional Juvenis & Juniores</li>
+                            </ul>
+                        </div>
+
+                        <div class="bg-white p-6 rounded-xl shadow border-t-4 border-cfcAccent">
+                            <h3 class="font-display text-xl font-bold text-cfcDarkBlue uppercase mb-3"><i class="fas fa-futbol text-cfcBlue mr-2"></i> ${clubData.estadio}</h3>
+                            <p class="text-sm text-slate-600 leading-relaxed mb-4">A nossa fortaleza. Um recinto moderno preparado para receber grandes espetáculos desportivos, com relvado de última geração, bancadas cobertas e camarotes VIP.</p>
+                            <div class="grid grid-cols-2 gap-4 text-center bg-slate-50 p-4 rounded-lg">
+                                <div><span class="block font-display text-2xl font-bold text-cfcBlue">45.000</span><span class="text-xs text-slate-500">Capacidade</span></div>
+                                <div><span class="block font-display text-2xl font-bold text-cfcBlue">UEFA/CAF</span><span class="text-xs text-slate-500">Padrão Relvado</span></div>
+                            </div>
+                        </div>
+
+                        <div class="bg-white p-6 rounded-xl shadow">
+                            <h3 class="font-display text-xl font-bold text-cfcDarkBlue uppercase mb-3"><i class="fas fa-building text-cfcBlue mr-2"></i> Instalações & Academia</h3>
+                            <p class="text-sm text-slate-600">Contamos com 4 campos de treino anexos ao Estádio Nacional do Teca, ginásio de alta performance, departamento médico fisioterapêutico e pavilhão multiusos para Andebol e Basquetebol.</p>
+                        </div>
+
+                        <div class="bg-white p-6 rounded-xl shadow">
+                            <h3 class="font-display text-xl font-bold text-cfcDarkBlue uppercase mb-3"><i class="fas fa-user-tie text-cfcBlue mr-2"></i> Presidência & Direção</h3>
+                            <p class="text-sm font-bold text-cfcBlue mb-1">Presidente: ${clubData.presidente}</p>
+                            <p class="text-sm text-slate-600">«O nosso compromisso é gerir o Carlos Futebol Clube com transparência empresarial, apostando na formação de jovens talentos e na proximidade com os nossos sócios.»</p>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // ==========================================
+        // SECÇÃO: FUTEBOL (Principal, Equipa B, Caçulinha, Juvenis, Júnior)
+        // ==========================================
+        function renderFutebol(container, subpage) {
+            container.innerHTML = `
+                <div class="fade-in space-y-8">
+                    <div class="flex flex-wrap justify-between items-center bg-white p-6 rounded-2xl shadow border-l-8 border-cfcBlue">
+                        <div>
+                            <h2 class="font-display text-3xl font-bold text-cfcDarkBlue uppercase">Departamento de Futebol</h2>
+                            <p class="text-sm text-slate-500">Da iniciação (Caçulinha) ao plantel profissional Sénior.</p>
+                        </div>
+                        <div class="flex flex-wrap gap-2 mt-4 md:mt-0">
+                            <span class="px-3 py-1 bg-cfcBlue text-white rounded-full text-xs font-bold">Equipa Principal</span>
+                            <span class="px-3 py-1 bg-cfcLightBlue text-cfcBlue rounded-full text-xs font-bold">Equipa B</span>
+                            <span class="px-3 py-1 bg-slate-100 text-slate-700 rounded-full text-xs font-bold">Júnior (Sub-19)</span>
+                            <span class="px-3 py-1 bg-slate-100 text-slate-700 rounded-full text-xs font-bold">Juvenis (Sub-17)</span>
+                            <span class="px-3 py-1 bg-slate-100 text-slate-700 rounded-full text-xs font-bold">Caçulinha (Sub-12)</span>
+                        </div>
+                    </div>
+
+                    <h3 class="font-display text-xl font-bold text-cfcDarkBlue uppercase">Plantel Principal (Sénior)</h3>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6">
+                        ${[
+                            { num: "1", nome: "Edson Ndongala", pos: "Guarda-Redes" },
+                            { num: "4", nome: "Mateus 'Furação' Silva", pos: "Defesa Central (C)" },
+                            { num: "8", nome: "João Paciência", pos: "Médio Centro" },
+                            { num: "9", nome: "Kiala Domingos", pos: "Ponta de Lança" }
+                        ].map(j => `
+                            <div class="bg-white rounded-xl p-5 shadow text-center border-b-4 border-cfcBlue hover:-translate-y-1 transition">
+                                <div class="w-16 h-16 mx-auto bg-cfcLightBlue text-cfcBlue rounded-full flex items-center justify-center font-display text-2xl font-bold mb-3">#${j.num}</div>
+                                <h4 class="font-bold text-slate-800">${j.nome}</h4>
+                                <p class="text-xs text-cfcBlue font-semibold uppercase mt-1">${j.pos}</p>
+                            </div>
+                        `).join('')}
+                    </div>
+
+                    <div class="bg-cfcDarkBlue text-white p-6 rounded-xl">
+                        <h3 class="font-display text-xl font-bold uppercase mb-2">Escalões de Formação & Equipa B</h3>
+                        <p class="text-sm text-blue-200 mb-4">O futuro do Carlos Futebol Clube constrói-se diariamente na nossa academia:</p>
+                        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 text-xs">
+                            <div class="bg-blue-900/60 p-4 rounded-lg border border-blue-700"><strong>Equipa B:</strong> Transição competitiva para a equipa principal.</div>
+                            <div class="bg-blue-900/60 p-4 rounded-lg border border-blue-700"><strong>Juniores (Sub-19):</strong> Campeonato Nacional de Juniores.</div>
+                            <div class="bg-blue-900/60 p-4 rounded-lg border border-blue-700"><strong>Juvenis (Sub-17):</strong> Desenvolvimento tático e físico.</div>
+                            <div class="bg-blue-900/60 p-4 rounded-lg border border-blue-700"><strong>Caçulinha:</strong> Escolinha de iniciação e valores desportivos.</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // ==========================================
+        // SECÇÃO: MODALIDADES (Futebol, Andebol, Basquetebol)
+        // ==========================================
+        function renderModalidades(container) {
+            container.innerHTML = `
+                <div class="fade-in space-y-6">
+                    <h2 class="font-display text-3xl font-bold text-cfcDarkBlue uppercase">Modalidades do Clube</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div class="bg-white p-6 rounded-xl shadow border-t-4 border-cfcBlue">
+                            <i class="fas fa-futbol text-4xl text-cfcBlue mb-4"></i>
+                            <h3 class="font-display text-xl font-bold uppercase">Futebol</h3>
+                            <p class="text-sm text-slate-600 mt-2">Modalidade principal do clube, abrangendo Sénior, Equipa B, Júnior, Juvenis e Caçulinha.</p>
+                        </div>
+                        <div class="bg-white p-6 rounded-xl shadow border-t-4 border-cfcAccent">
+                            <i class="fas fa-volleyball-ball text-4xl text-cfcAccent mb-4"></i>
+                            <h3 class="font-display text-xl font-bold uppercase">Andebol</h3>
+                            <p class="text-sm text-slate-600 mt-2">Equipas masculinas e femininas a competir nos campeonatos provinciais e nacionais.</p>
+                        </div>
+                        <div class="bg-white p-6 rounded-xl shadow border-t-4 border-cfcDarkBlue">
+                            <i class="fas fa-basketball-ball text-4xl text-cfcDarkBlue mb-4"></i>
+                            <h3 class="font-display text-xl font-bold uppercase">Basquetebol</h3>
+                            <p class="text-sm text-slate-600 mt-2">Formação e competição sénior no pavilhão multiusos do Complexo do Teca.</p>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // ==========================================
+        // SECÇÃO: NOTÍCIAS & TRANSFERÊNCIAS
+        // ==========================================
+        function renderNoticias(container) {
+            container.innerHTML = `
+                <div class="fade-in space-y-6">
+                    <h2 class="font-display text-3xl font-bold text-cfcDarkBlue uppercase">Sala de Imprensa & Notícias</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        ${clubData.noticias.map(n => `
+                            <div class="bg-white rounded-xl overflow-hidden shadow">
+                                <img src="${n.img}" class="w-full h-48 object-cover">
+                                <div class="p-5">
+                                    <span class="text-xs font-bold text-cfcBlue uppercase">${n.cat} • ${n.data}</span>
+                                    <h3 class="font-bold text-lg text-slate-800 mt-2">${n.titulo}</h3>
+                                    <p class="text-xs text-slate-500 mt-2">Leia o comunicado oficial completo preparado pela comunicação do Carlos Futebol Clube.</p>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderTransferencias(container) {
+            container.innerHTML = `
+                <div class="fade-in space-y-6">
+                    <h2 class="font-display text-3xl font-bold text-cfcDarkBlue uppercase">Mercado de Transferências</h2>
+                    <div class="bg-white rounded-xl shadow overflow-hidden">
+                        <table class="w-full text-left text-sm">
+                            <thead class="bg-cfcBlue text-white uppercase text-xs">
+                                <tr>
+                                    <th class="p-4">Jogador</th>
+                                    <th class="p-4">Posição</th>
+                                    <th class="p-4">Clube de Origem</th>
+                                    <th class="p-4">Movimento</th>
+                                    <th class="p-4">Vínculo</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-100">
+                                ${clubData.transferencias.map(t => `
+                                    <tr class="hover:bg-slate-50">
+                                        <td class="p-4 font-bold text-slate-800">${t.jogador}</td>
+                                        <td class="p-4 text-slate-600">${t.posicao}</td>
+                                        <td class="p-4 text-slate-600">${t.origem}</td>
+                                        <td class="p-4"><span class="bg-green-100 text-green-700 px-2.5 py-1 rounded-full text-xs font-bold">${t.tipo}</span></td>
+                                        <td class="p-4 font-semibold text-cfcBlue">${t.valor}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+        }
+
+        // ==========================================
+        // SECÇÃO: AGENDA, ACOMPANHAR EM DIRETO & BILHETES
+        // ==========================================
+        function renderAgenda(container) {
+            container.innerHTML = `
+                <div class="fade-in space-y-8">
+                    <h2 class="font-display text-3xl font-bold text-cfcDarkBlue uppercase">Agenda de Jogos & Centro de Diretos</h2>
+                    
+                    <!-- JOGO EM DESTAQUE + MATCH CENTER AO VIVO -->
+                    <div class="bg-white rounded-2xl shadow-lg p-6 border-l-8 border-cfcBlue">
+                        <div class="flex flex-wrap justify-between items-center gap-4">
+                            <div>
+                                <span class="bg-red-600 text-white text-[10px] font-bold px-2.5 py-1 rounded uppercase animate-pulse">● Acompanhar em Direto (Minuto a Minuto)</span>
+                                <h3 class="font-display text-2xl font-bold text-slate-800 mt-2">Carlos Futebol Clube vs Petro de Luanda</h3>
+                                <p class="text-xs text-slate-500"><i class="fas fa-calendar mr-1"></i> Domingo, 22 de Novembro • 16:00 | <i class="fas fa-map-marker-alt ml-2 mr-1"></i> ${clubData.estadio}</p>
+                            </div>
+                            <div class="flex space-x-3">
+                                <button onclick="alert('Transmissão em direto do Estádio Nacional do Teca iniciada!')" class="bg-cfcDarkBlue text-white px-5 py-2.5 rounded-lg text-xs font-bold hover:bg-blue-900 transition">
+                                    <i class="fas fa-broadcast-tower mr-1"></i> Abrir Relato em Direto
+                                </button>
+                                <button onclick="navigate('bilhetes')" class="bg-cfcBlue text-white px-5 py-2.5 rounded-lg text-xs font-bold hover:bg-blue-700 transition">
+                                    <i class="fas fa-ticket-alt mr-1"></i> Comprar Bilhete
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- PRÓXIMOS JOGOS -->
+                    <div class="bg-white rounded-xl shadow p-6 space-y-4">
+                        <h4 class="font-bold text-slate-700 uppercase text-xs">Calendário Oficial</h4>
+                        <div class="flex justify-between items-center p-4 bg-slate-50 rounded-lg">
+                            <div><strong>1º de Agosto vs Carlos FC</strong> <span class="text-xs text-slate-500 block">29 Nov • 16:00 • Estádio 11 de Novembro</span></div>
+                            <button onclick="navigate('bilhetes')" class="text-xs font-bold text-cfcBlue border border-cfcBlue px-3 py-1.5 rounded hover:bg-cfcBlue hover:text-white transition">Bilhetes</button>
+                        </div>
+                        <div class="flex justify-between items-center p-4 bg-slate-50 rounded-lg">
+                            <div><strong>Carlos FC vs Sagrada Esperança</strong> <span class="text-xs text-slate-500 block">06 Dez • 16:00 • ${clubData.estadio}</span></div>
+                            <button onclick="navigate('bilhetes')" class="text-xs font-bold text-cfcBlue border border-cfcBlue px-3 py-1.5 rounded hover:bg-cfcBlue hover:text-white transition">Bilhetes</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // ==========================================
+        // SECÇÃO: LOJA OFICIAL
+        // ==========================================
+        function renderLoja(container) {
+            container.innerHTML = `
+                <div class="fade-in space-y-6">
+                    <div class="flex justify-between items-center">
+                        <div>
+                            <h2 class="font-display text-3xl font-bold text-cfcDarkBlue uppercase">Loja Oficial Carlos FC</h2>
+                            <p class="text-sm text-slate-500">Veste as cores azul e branco com orgulho.</p>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+                        ${clubData.produtos.map(p => `
+                            <div class="bg-white rounded-xl overflow-hidden shadow border border-slate-100 flex flex-col">
+                                <img src="${p.img}" class="w-full h-52 object-cover">
+                                <div class="p-5 flex-1 flex flex-col justify-between">
+                                    <div>
+                                        <h3 class="font-bold text-slate-800">${p.nome}</h3>
+                                        <p class="font-display text-xl font-bold text-cfcBlue mt-2">${p.preco}</p>
+                                    </div>
+                                    <button onclick="alert('Produto adicionado ao carrinho: ${p.nome}')" class="mt-4 w-full bg-cfcBlue text-white font-bold py-2.5 rounded-lg text-xs hover:bg-cfcDarkBlue transition">
+                                        <i class="fas fa-cart-plus mr-1"></i> Adicionar ao Carrinho
+                                    </button>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+        }
+
+        // ==========================================
+        // SECÇÃO: BILHETEIRA
+        // ==========================================
+        function renderBilhetes(container) {
+            container.innerHTML = `
+                <div class="fade-in max-w-3xl mx-auto bg-white rounded-2xl shadow-xl p-8 border-t-8 border-cfcBlue">
+                    <h2 class="font-display text-3xl font-bold text-cfcDarkBlue uppercase mb-2">Bilheteira Oficial</h2>
+                    <p class="text-sm text-slate-500 mb-6">Jogo: <strong>Carlos Futebol Clube vs Petro de Luanda</strong> • ${clubData.estadio}</p>
+                    
+                    <div class="space-y-4">
+                        <div class="p-4 border rounded-xl flex justify-between items-center hover:border-cfcBlue">
+                            <div><h4 class="font-bold">Bancada Geral (Azul & Branco)</h4><p class="text-xs text-slate-500">Acesso Sul / Norte</p></div>
+                            <div class="text-right"><span class="block font-bold text-cfcBlue">1.000 Kz</span><button onclick="alert('Bilhete Geral reservado!')" class="mt-1 bg-cfcBlue text-white text-xs px-4 py-1.5 rounded font-bold">Selecionar</button></div>
+                        </div>
+                        <div class="p-4 border rounded-xl flex justify-between items-center hover:border-cfcBlue">
+                            <div><h4 class="font-bold">Bancada Central Coberta</h4><p class="text-xs text-slate-500">Visão privilegiada do relvado</p></div>
+                            <div class="text-right"><span class="block font-bold text-cfcBlue">3.000 Kz</span><button onclick="alert('Bilhete Central reservado!')" class="mt-1 bg-cfcBlue text-white text-xs px-4 py-1.5 rounded font-bold">Selecionar</button></div>
+                        </div>
+                        <div class="p-4 border rounded-xl flex justify-between items-center bg-cfcLightBlue/40 border-cfcBlue">
+                            <div><h4 class="font-bold text-cfcDarkBlue">Camarote VIP Teca</h4><p class="text-xs text-slate-600">Catering incluído + Estacionamento</p></div>
+                            <div class="text-right"><span class="block font-bold text-cfcDarkBlue">15.000 Kz</span><button onclick="alert('Bilhete VIP reservado!')" class="mt-1 bg-cfcDarkBlue text-white text-xs px-4 py-1.5 rounded font-bold">Selecionar</button></div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // ==========================================
+        // SECÇÃO: ÁREA DO SÓCIO
+        // ==========================================
+        function renderSocio(container) {
+            container.innerHTML = `
+                <div class="fade-in space-y-8">
+                    <div class="bg-gradient-to-r from-cfcDarkBlue to-cfcBlue text-white p-8 rounded-2xl shadow-lg flex flex-col md:flex-row justify-between items-center">
+                        <div>
+                            <h2 class="font-display text-3xl font-bold uppercase">Área do Sócio Carlos FC</h2>
+                            <p class="text-blue-200 text-sm mt-1">Faz parte da história. Descontos na loja, prioridade nos bilhetes e direito a voto.</p>
+                        </div>
+                        <button onclick="openLoginModal()" class="mt-4 md:mt-0 bg-white text-cfcBlue font-bold px-6 py-3 rounded-xl text-sm shadow hover:bg-blue-50">
+                            Aceder ao Meu Cartão Digital
+                        </button>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div class="bg-white p-6 rounded-xl shadow border-t-4 border-slate-400 text-center">
+                            <h3 class="font-display text-xl font-bold uppercase">Sócio Correspondente</h3>
+                            <p class="font-display text-3xl font-bold text-cfcBlue my-3">2.500 Kz<span class="text-xs font-sans text-slate-400">/mês</span></p>
+                            <p class="text-xs text-slate-500 mb-4">Ideal para adeptos fora da província. 10% desconto na loja.</p>
+                            <button onclick="alert('Inscrição iniciada!')" class="w-full bg-slate-100 text-slate-800 font-bold py-2 rounded-lg text-xs hover:bg-cfcBlue hover:text-white transition">Aderir Agora</button>
+                        </div>
+                        <div class="bg-white p-6 rounded-xl shadow-lg border-t-4 border-cfcBlue text-center transform md:-translate-y-2">
+                            <span class="bg-cfcBlue text-white text-[10px] font-bold px-2 py-0.5 rounded uppercase">Mais Popular</span>
+                            <h3 class="font-display text-xl font-bold uppercase mt-1">Sócio Efetivo</h3>
+                            <p class="font-display text-3xl font-bold text-cfcBlue my-3">5.000 Kz<span class="text-xs font-sans text-slate-400">/mês</span></p>
+                            <p class="text-xs text-slate-500 mb-4">Entrada gratuita nos jogos em casa (Bancada Geral) + 20% na Loja.</p>
+                            <button onclick="alert('Inscrição iniciada!')" class="w-full bg-cfcBlue text-white font-bold py-2.5 rounded-lg text-xs hover:bg-cfcDarkBlue transition">Aderir Agora</button>
+                        </div>
+                        <div class="bg-white p-6 rounded-xl shadow border-t-4 border-cfcAccent text-center">
+                            <h3 class="font-display text-xl font-bold uppercase">Sócio VIP Teca</h3>
+                            <p class="font-display text-3xl font-bold text-cfcDarkBlue my-3">20.000 Kz<span class="text-xs font-sans text-slate-400">/mês</span></p>
+                            <p class="text-xs text-slate-500 mb-4">Cadeira cativa VIP no Estádio Nacional do Teca + Camisola Oficial anual.</p>
+                            <button onclick="alert('Inscrição iniciada!')" class="w-full bg-cfcDarkBlue text-white font-bold py-2 rounded-lg text-xs hover:bg-blue-900 transition">Aderir Agora</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // ==========================================
+        // SECÇÃO: VÍDEOS & PODCAST (CFC TV)
+        // ==========================================
+        function renderMultimedia(container) {
+            container.innerHTML = `
+                <div class="fade-in space-y-8">
+                    <h2 class="font-display text-3xl font-bold text-cfcDarkBlue uppercase">CFC TV • Vídeos & Podcast Oficial</h2>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        <!-- Área de Vídeos -->
+                        <div class="bg-white p-6 rounded-2xl shadow space-y-4">
+                            <h3 class="font-display text-xl font-bold text-cfcBlue uppercase"><i class="fas fa-play-circle mr-2"></i> Últimos Vídeos</h3>
+                            <div class="relative rounded-xl overflow-hidden bg-slate-900 h-56 flex items-center justify-center group cursor-pointer" onclick="alert('A reproduzir vídeo: Bastidores no Estádio Nacional do Teca')">
+                                <img src="https://images.unsplash.com/photo-1518605368461-1ee7e543666d?auto=format&fit=crop&w=800&q=80" class="absolute inset-0 w-full h-full object-cover opacity-60 group-hover:scale-105 transition">
+                                <div class="relative z-10 w-14 h-14 bg-cfcBlue text-white rounded-full flex items-center justify-center shadow-lg"><i class="fas fa-play ml-1"></i></div>
+                                <span class="absolute bottom-3 left-3 text-white text-xs font-bold bg-black/60 px-2 py-1 rounded">Bastidores: Treino antes do Petro de Luanda</span>
+                            </div>
+                        </div>
+
+                        <!-- Área de Podcast -->
+                        <div class="bg-white p-6 rounded-2xl shadow space-y-4">
+                            <h3 class="font-display text-xl font-bold text-cfcDarkBlue uppercase"><i class="fas fa-podcast text-cfcAccent mr-2"></i> Podcast "Voz do Teca"</h3>
+                            <div class="space-y-3">
+                                <div class="p-4 bg-cfcLightBlue/50 rounded-xl flex items-center justify-between">
+                                    <div>
+                                        <span class="text-[10px] font-bold text-cfcBlue uppercase">Episódio #14 • 45 min</span>
+                                        <h4 class="font-bold text-sm text-slate-800">Entrevista com o Capitão Mateus Silva</h4>
+                                    </div>
+                                    <button onclick="alert('A reproduzir Podcast Episódio #14...')" class="w-10 h-10 bg-cfcBlue text-white rounded-full flex items-center justify-center hover:bg-cfcDarkBlue"><i class="fas fa-play text-xs"></i></button>
+                                </div>
+                                <div class="p-4 bg-slate-50 rounded-xl flex items-center justify-between">
+                                    <div>
+                                        <span class="text-[10px] font-bold text-slate-500 uppercase">Episódio #13 • 38 min</span>
+                                        <h4 class="font-bold text-sm text-slate-800">O futuro da Formação: Dos Caçulinhas aos Seniores</h4>
+                                    </div>
+                                    <button onclick="alert('A reproduzir Podcast Episódio #13...')" class="w-10 h-10 bg-cfcDarkBlue text-white rounded-full flex items-center justify-center hover:bg-cfcBlue"><i class="fas fa-play text-xs"></i></button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // ==========================================
+        // SISTEMA DE LOGIN, BACK-OFFICE & CRM INTEGRADO
+        // ==========================================
+        function openLoginModal() { document.getElementById('login-modal').classList.remove('hidden'); }
+        function closeLoginModal() { document.getElementById('login-modal').classList.add('hidden'); }
+
+        function loginAs(role) {
+            closeLoginModal();
+            if(role === 'socio') {
+                alert("Bem-vindo de volta, Sócio #CFC-001! As suas quotas estão em dia.");
+                navigate('socio');
+            } else {
+                document.getElementById('user-status-badge').classList.remove('hidden');
+                navigate('backoffice');
+            }
+        }
+
+        function renderBackOffice(container) {
+            container.innerHTML = `
+                <div class="fade-in space-y-8">
+                    <div class="bg-slate-900 text-white p-6 rounded-2xl shadow-lg flex flex-wrap justify-between items-center border-b-4 border-cfcAccent">
+                        <div>
+                            <span class="text-xs text-cfcAccent font-bold uppercase tracking-wider">Painel de Gestão Administrativa</span>
+                            <h2 class="font-display text-3xl font-bold uppercase">Back-Office & CRM • Carlos Futebol Clube</h2>
+                        </div>
+                        <button onclick="navigate('home')" class="bg-white/10 hover:bg-white/20 text-white px-4 py-2 rounded-lg text-xs font-bold">Voltar ao Site Público</button>
+                    </div>
+
+                    <!-- KPIs DO CRM & CLUBE -->
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                        <div class="bg-white p-5 rounded-xl shadow border-l-4 border-cfcBlue">
+                            <span class="text-xs text-slate-400 font-bold uppercase">Sócios Ativos (CRM)</span>
+                            <p class="font-display text-3xl font-bold text-slate-800 mt-1">4.820</p>
+                        </div>
+                        <div class="bg-white p-5 rounded-xl shadow border-l-4 border-green-500">
+                            <span class="text-xs text-slate-400 font-bold uppercase">Bilhetes Vendidos (Petro)</span>
+                            <p class="font-display text-3xl font-bold text-slate-800 mt-1">31.450</p>
+                        </div>
+                        <div class="bg-white p-5 rounded-xl shadow border-l-4 border-cfcAccent">
+                            <span class="text-xs text-slate-400 font-bold uppercase">Receita Loja (Mês)</span>
+                            <p class="font-display text-3xl font-bold text-slate-800 mt-1">6.4M Kz</p>
+                        </div>
+                        <div class="bg-white p-5 rounded-xl shadow border-l-4 border-yellow-500">
+                            <span class="text-xs text-slate-400 font-bold uppercase">Quotas em Atraso</span>
+                            <p class="font-display text-3xl font-bold text-slate-800 mt-1">12%</p>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                        <!-- MÓDULO BACK-OFFICE: PUBLICAR NOVA NOTÍCIA NO SITE -->
+                        <div class="bg-white p-6 rounded-xl shadow space-y-4">
+                            <h3 class="font-display text-xl font-bold text-cfcDarkBlue uppercase border-b pb-2"><i class="fas fa-edit text-cfcBlue mr-2"></i> Back-Office: Publicar Notícia no Site</h3>
+                            <div>
+                                <label class="block text-xs font-bold text-slate-600 mb-1">Título da Notícia</label>
+                                <input type="text" id="bo-news-title" placeholder="Ex: Estádio Nacional do Teca com lotação esgotada..." class="w-full border rounded-lg px-3 py-2 text-sm">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-slate-600 mb-1">Categoria</label>
+                                <select id="bo-news-cat" class="w-full border rounded-lg px-3 py-2 text-sm">
+                                    <option>Equipa Principal</option>
+                                    <option>Transferências</option>
+                                    <option>Formação (Caçulinha/Juvenis/Júnior)</option>
+                                    <option>Andebol & Basquetebol</option>
+                                </select>
+                            </div>
+                            <button onclick="addNewsFromBackOffice()" class="bg-cfcBlue text-white font-bold px-5 py-2.5 rounded-lg text-xs hover:bg-cfcDarkBlue transition">
+                                <i class="fas fa-paper-plane mr-1"></i> Publicar Agora no Website
+                            </button>
+                        </div>
+
+                        <!-- MÓDULO CRM: GESTÃO DE SÓCIOS E ADEPTOS -->
+                        <div class="bg-white p-6 rounded-xl shadow space-y-4">
+                            <div class="flex justify-between items-center border-b pb-2">
+                                <h3 class="font-display text-xl font-bold text-cfcDarkBlue uppercase"><i class="fas fa-users-cog text-cfcBlue mr-2"></i> CRM: Base de Sócios</h3>
+                                <button onclick="alert('Campanha SMS/Email enviada a todos os sócios com quotas pendentes!')" class="bg-green-600 text-white text-[11px] font-bold px-3 py-1 rounded hover:bg-green-700">
+                                    <i class="fab fa-whatsapp mr-1"></i> Cobrar Quotas (Automático)
+                                </button>
+                            </div>
+                            <table class="w-full text-left text-xs">
+                                <thead class="bg-slate-100 text-slate-600 uppercase">
+                                    <tr>
+                                        <th class="p-2.5">Nº Sócio</th>
+                                        <th class="p-2.5">Nome</th>
+                                        <th class="p-2.5">Categoria</th>
+                                        <th class="p-2.5">Estado CRM</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y">
+                                    ${clubData.sociosCRM.map(s => `
+                                        <tr>
+                                            <td class="p-2.5 font-bold text-cfcBlue">${s.id}</td>
+                                            <td class="p-2.5 font-semibold">${s.nome}</td>
+                                            <td class="p-2.5">${s.categoria}</td>
+                                            <td class="p-2.5"><span class="px-2 py-0.5 rounded font-bold ${s.quotas === 'Em dia' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}">${s.quotas}</span></td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function addNewsFromBackOffice() {
+            const title = document.getElementById('bo-news-title').value;
+            const cat = document.getElementById('bo-news-cat').value;
+            if(!title) return alert("Escreva um título primeiro.");
+            
+            clubData.noticias.unshift({
+                id: Date.now(),
+                titulo: title,
+                data: "Agora mesmo",
+                cat: cat,
+                img: "https://images.unsplash.com/photo-1508098682722-e99c43a406b2?auto=format&fit=crop&w=600&q=80"
+            });
+            alert("Notícia publicada com sucesso no site principal!");
+            navigate('home');
+        }
+
+        function handleSearch(query) {
+            if(query.length > 2) {
+                console.log("Pesquisando no portal Carlos FC por:", query);
+            }
+        }
+
+        // Inicializar na página principal
+        window.onload = () => navigate('home');
+    </script>
+</body>
+</html>

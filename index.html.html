@@ -1,0 +1,872 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Back-Office & CRM | Carlos Futebol Clube</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        cfcBlue: '#0047AB',
+                        cfcDarkBlue: '#002868',
+                        cfcLightBlue: '#E6F0FF',
+                        cfcAccent: '#00A3FF',
+                    },
+                    fontFamily: {
+                        sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+                        display: ['"Oswald"', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .fade-in { animation: fadeIn 0.25s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body class="bg-slate-100 text-slate-800 min-h-screen">
+
+    <!-- ========================================== -->
+    <!-- ECRÃ DE AUTENTICAÇÃO DO BACK-OFFICE        -->
+    <!-- ========================================== -->
+    <div id="auth-screen" class="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-cfcDarkBlue via-cfcBlue to-slate-900">
+        <div class="bg-white rounded-2xl max-w-lg w-full p-8 shadow-2xl border-t-8 border-cfcAccent fade-in">
+            <div class="flex items-center justify-between mb-6">
+                <div class="flex items-center space-x-3">
+                    <div class="w-12 h-12 bg-cfcBlue text-white rounded-full flex items-center justify-center font-display font-bold text-lg">CFC</div>
+                    <div>
+                        <h1 class="font-display text-2xl font-bold text-cfcDarkBlue uppercase">Back-Office Separado</h1>
+                        <p class="text-xs text-slate-500">Carlos Futebol Clube • Gestão & Permissões</p>
+                    </div>
+                </div>
+                <a href="index.html" class="text-xs font-bold text-cfcBlue hover:underline"><i class="fas fa-arrow-left mr-1"></i> Site</a>
+            </div>
+
+            <form onsubmit="handleBackofficeLogin(event)" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Utilizador / E-mail Corporativo</label>
+                    <input type="text" id="bo-login-user" value="admin@carlosfc.ao" required class="w-full border border-slate-300 rounded-lg px-3.5 py-2.5 text-sm focus:outline-none focus:border-cfcBlue">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Palavra-Passe</label>
+                    <input type="password" id="bo-login-pass" value="admin123" required class="w-full border border-slate-300 rounded-lg px-3.5 py-2.5 text-sm focus:outline-none focus:border-cfcBlue">
+                </div>
+                <button type="submit" class="w-full bg-cfcBlue hover:bg-cfcDarkBlue text-white font-bold py-3 rounded-xl text-xs uppercase tracking-wider shadow-lg transition">
+                    <i class="fas fa-lock-open mr-2"></i> Entrar no Painel Administrativo
+                </button>
+            </form>
+
+            <!-- ATALHOS DE DEMONSTRAÇÃO PARA TESTAR PERMISSÕES POR UTILIZADOR -->
+            <div class="mt-6 pt-5 border-t border-slate-100">
+                <p class="text-[11px] font-bold text-slate-400 uppercase mb-2.5">Acesso Rápido por Perfil (Testar Permissões):</p>
+                <div id="quick-login-users" class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                    <!-- Injetado via JS -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- PAINEL ADMINISTRATIVO (APÓS LOGIN)         -->
+    <!-- ========================================== -->
+    <div id="dashboard-screen" class="hidden flex h-screen overflow-hidden">
+        <!-- Menu Lateral do Backoffice (Filtrado pelas permissões do utilizador!) -->
+        <aside class="w-68 bg-cfcDarkBlue text-white flex flex-col h-full shadow-xl flex-shrink-0">
+            <div class="p-6 border-b border-blue-900">
+                <span class="text-[10px] font-bold uppercase tracking-widest text-cfcAccent">Back-Office Oficial</span>
+                <h2 class="font-display text-xl font-bold uppercase mt-0.5">Carlos Futebol Clube</h2>
+                <div id="logged-user-card" class="mt-3 bg-blue-950/70 p-3 rounded-xl border border-blue-800 text-xs"></div>
+            </div>
+
+            <nav id="bo-nav-menu" class="flex-1 p-3 space-y-1 overflow-y-auto text-xs font-semibold">
+                <!-- Módulos permitidos ao utilizador logado -->
+            </nav>
+
+            <div class="p-4 border-t border-blue-900 space-y-2">
+                <a href="index.html" target="_blank" class="w-full bg-cfcBlue hover:bg-blue-600 text-white font-bold py-2 px-3 rounded-lg text-xs flex items-center justify-center transition">
+                    <i class="fas fa-external-link-alt mr-2"></i> Ver Site Público
+                </a>
+                <button onclick="logoutBackoffice()" class="w-full bg-white/10 hover:bg-red-600 text-white font-bold py-2 px-3 rounded-lg text-xs flex items-center justify-center transition">
+                    <i class="fas fa-sign-out-alt mr-2"></i> Terminar Sessão
+                </button>
+            </div>
+        </aside>
+
+        <!-- Área de Trabalho -->
+        <main class="flex-1 overflow-y-auto p-6 md:p-8">
+            <div id="bo-content" class="max-w-6xl mx-auto space-y-6"></div>
+        </main>
+    </div>
+
+    <div id="bo-toast" class="hidden fixed bottom-6 right-6 bg-cfcDarkBlue text-white px-5 py-3 rounded-xl shadow-2xl border-l-4 border-cfcAccent z-50 text-xs font-bold"></div>
+
+    <script>
+        const STORAGE_KEY = 'cfc_portal_data_v2';
+        const USERS_KEY = 'cfc_backoffice_users_v2';
+        const AUDIT_KEY = 'cfc_backoffice_audit_v2';
+
+        // TODAS AS PERMISSÕES GRANULARES DISPONÍVEIS NO CLUBE
+        const ALL_PERMISSIONS = [
+            { id: 'dashboard', label: 'Visão Geral & KPIs', icon: 'fa-chart-line' },
+            { id: 'socios', label: 'Área de Sócios & CRM', icon: 'fa-id-card' },
+            { id: 'financas', label: 'Finanças & Receitas', icon: 'fa-coins' },
+            { id: 'gestao', label: 'Gestão Operacional & Notícias', icon: 'fa-cogs' },
+            { id: 'bilheteria', label: 'Bilheteria & Lotação', icon: 'fa-ticket-alt' },
+            { id: 'multimedia', label: 'Multimédia (Fotos/Vídeos/Carrosséis)', icon: 'fa-photo-video' },
+            { id: 'patrocinadores', label: 'Patrocinadores & Logos', icon: 'fa-handshake' },
+            { id: 'contactos', label: 'Caixa de Contactos (Dept.)', icon: 'fa-envelope-open-text' },
+            { id: 'usuarios', label: 'Administração de Utilizadores', icon: 'fa-users-cog' }
+        ];
+
+        // UTILIZADORES INICIAIS (O ADMIN PODE CRIAR NOVOS E CONFIGURAR PERMISSÕES INDIVIDUAIS)
+        const defaultUsers = [
+            {
+                id: 'usr-1',
+                nome: 'Dr. Carlos Mendes (Admin)',
+                email: 'admin@carlosfc.ao',
+                senha: 'admin123',
+                cargo: 'Administrador Geral',
+                isAdmin: true,
+                ativo: true,
+                permissoes: ALL_PERMISSIONS.map(p => p.id)
+            },
+            {
+                id: 'usr-2',
+                nome: 'Helena Costa',
+                email: 'socios@carlosfc.ao',
+                senha: '123',
+                cargo: 'Gestora de Sócios',
+                isAdmin: false,
+                ativo: true,
+                permissoes: ['socios'] // Apenas área de sócio
+            },
+            {
+                id: 'usr-3',
+                nome: 'Manuel Tavares',
+                email: 'financas@carlosfc.ao',
+                senha: '123',
+                cargo: 'Diretor Financeiro',
+                isAdmin: false,
+                ativo: true,
+                permissoes: ['financas'] // Apenas finanças
+            },
+            {
+                id: 'usr-4',
+                nome: 'Sofia Mateus',
+                email: 'bilheteria@carlosfc.ao',
+                senha: '123',
+                cargo: 'Responsável Bilheteria',
+                isAdmin: false,
+                ativo: true,
+                permissoes: ['bilheteria'] // Apenas bilheteria
+            }
+        ];
+
+        function loadUsers() {
+            const saved = localStorage.getItem(USERS_KEY);
+            if (saved) return JSON.parse(saved);
+            localStorage.setItem(USERS_KEY, JSON.stringify(defaultUsers));
+            return defaultUsers;
+        }
+
+        function saveUsers() {
+            localStorage.setItem(USERS_KEY, JSON.stringify(usersList));
+        }
+
+        function loadClubData() {
+            const saved = localStorage.getItem(STORAGE_KEY);
+            return saved ? JSON.parse(saved) : {
+                noticias: [], multimedia: [], patrocinadores: [], mensagensContacto: [],
+                sociosCRM: [
+                    { id: "CFC-001", nome: "António Manuel", categoria: "Sócio Efetivo", quotas: "Em dia", telemovel: "+244 923 111 222" },
+                    { id: "CFC-002", nome: "Maria Fernanda", categoria: "Sócio VIP Teca", quotas: "Em dia", telemovel: "+244 924 333 444" }
+                ]
+            };
+        }
+
+        function saveClubData() {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(clubData));
+        }
+
+        function logAudit(acao) {
+            const logs = JSON.parse(localStorage.getItem(AUDIT_KEY) || '[]');
+            logs.unshift({
+                data: new Date().toLocaleString('pt-PT'),
+                usuario: currentUser ? currentUser.nome : 'Sistema',
+                acao
+            });
+            localStorage.setItem(AUDIT_KEY, JSON.stringify(logs.slice(0, 50)));
+        }
+
+        let usersList = loadUsers();
+        let clubData = loadClubData();
+        let currentUser = null;
+        let activeTab = '';
+
+        function showBoToast(msg) {
+            const t = document.getElementById('bo-toast');
+            t.innerText = msg;
+            t.classList.remove('hidden');
+            clearTimeout(window._boToast);
+            window._boToast = setTimeout(() => t.classList.add('hidden'), 3200);
+        }
+
+        function renderQuickLogins() {
+            const box = document.getElementById('quick-login-users');
+            if (!box) return;
+            box.innerHTML = usersList.filter(u => u.ativo).map(u => `
+                <button type="button" onclick="quickLogin('${u.email}')" class="text-left p-2.5 rounded-lg border border-slate-200 hover:border-cfcBlue hover:bg-cfcLightBlue/40 transition">
+                    <span class="block font-bold text-cfcDarkBlue truncate">${u.nome}</span>
+                    <span class="text-[10px] text-slate-500">${u.isAdmin ? 'Acesso Total (Admin)' : 'Acesso: ' + u.permissoes.join(', ')}</span>
+                </button>
+            `).join('');
+        }
+
+        function quickLogin(email) {
+            const user = usersList.find(u => u.email === email && u.ativo);
+            if (!user) return;
+            currentUser = user;
+            enterDashboard();
+        }
+
+        function handleBackofficeLogin(e) {
+            e.preventDefault();
+            const email = document.getElementById('bo-login-user').value.trim().toLowerCase();
+            const pass = document.getElementById('bo-login-pass').value;
+            const user = usersList.find(u => u.email.toLowerCase() === email && u.senha === pass);
+            if (!user) return alert("Credenciais inválidas.");
+            if (!user.ativo) return alert("Esta conta de utilizador está desativada pelo Administrador.");
+            currentUser = user;
+            enterDashboard();
+        }
+
+        function enterDashboard() {
+            logAudit('Iniciou sessão no Back-Office');
+            document.getElementById('auth-screen').classList.add('hidden');
+            document.getElementById('dashboard-screen').classList.remove('hidden');
+
+            document.getElementById('logged-user-card').innerHTML = `
+                <p class="font-bold text-white">${currentUser.nome}</p>
+                <p class="text-blue-300 text-[11px]">${currentUser.cargo}</p>
+                <span class="inline-block mt-1.5 px-2 py-0.5 rounded text-[10px] font-bold ${currentUser.isAdmin ? 'bg-cfcAccent text-white' : 'bg-blue-800 text-blue-200'}">
+                    ${currentUser.isAdmin ? 'ADMINISTRADOR TOTAL' : currentUser.permissoes.length + ' módulo(s) autorizado(s)'}
+                </span>
+            `;
+
+            const allowedModules = ALL_PERMISSIONS.filter(p => currentUser.isAdmin || currentUser.permissoes.includes(p.id));
+            const nav = document.getElementById('bo-nav-menu');
+            nav.innerHTML = allowedModules.map(m => `
+                <button onclick="selectBoTab('${m.id}')" id="bo-tab-${m.id}" class="bo-tab-btn w-full flex items-center px-3.5 py-2.5 rounded-lg hover:bg-blue-900 transition text-left">
+                    <i class="fas ${m.icon} w-5 text-cfcAccent"></i> <span>${m.label}</span>
+                </button>
+            `).join('');
+
+            if (allowedModules.length > 0) {
+                selectBoTab(allowedModules[0].id);
+            } else {
+                document.getElementById('bo-content').innerHTML = `<div class="bg-white p-8 rounded-2xl shadow text-center text-sm">Este utilizador não tem módulos atribuídos. Contacte o Administrador.</div>`;
+            }
+        }
+
+        function logoutBackoffice() {
+            logAudit('Terminou sessão no Back-Office');
+            currentUser = null;
+            document.getElementById('dashboard-screen').classList.add('hidden');
+            document.getElementById('auth-screen').classList.remove('hidden');
+            renderQuickLogins();
+        }
+
+        function selectBoTab(tabId) {
+            if (!currentUser.isAdmin && !currentUser.permissoes.includes(tabId)) {
+                return alert("Acesso negado: o seu perfil não tem permissão para este módulo.");
+            }
+            activeTab = tabId;
+            clubData = loadClubData();
+            document.querySelectorAll('.bo-tab-btn').forEach(b => b.classList.remove('bg-cfcBlue', 'text-white'));
+            const btn = document.getElementById('bo-tab-' + tabId);
+            if (btn) btn.classList.add('bg-cfcBlue', 'text-white');
+
+            const box = document.getElementById('bo-content');
+            if (tabId === 'dashboard') renderBoDashboard(box);
+            else if (tabId === 'socios') renderBoSocios(box);
+            else if (tabId === 'financas') renderBoFinancas(box);
+            else if (tabId === 'gestao') renderBoGestao(box);
+            else if (tabId === 'bilheteria') renderBoBilheteria(box);
+            else if (tabId === 'multimedia') renderBoMultimedia(box);
+            else if (tabId === 'patrocinadores') renderBoPatrocinadores(box);
+            else if (tabId === 'contactos') renderBoContactos(box);
+            else if (tabId === 'usuarios') renderBoUsuarios(box);
+        }
+
+        // ==========================================
+        // 1. VISÃO GERAL & AUDITORIA
+        // ==========================================
+        function renderBoDashboard(box) {
+            const logs = JSON.parse(localStorage.getItem(AUDIT_KEY) || '[]');
+            box.innerHTML = `
+                <div class="fade-in space-y-6">
+                    <h2 class="font-display text-2xl font-bold text-cfcDarkBlue uppercase">Visão Geral do Clube</h2>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                        <div class="bg-white p-5 rounded-xl shadow border-l-4 border-cfcBlue">
+                            <span class="text-xs text-slate-400 font-bold uppercase">Sócios Registados</span>
+                            <p class="font-display text-3xl font-bold text-slate-800 mt-1">${(clubData.sociosCRM || []).length} (4.820 ativos)</p>
+                        </div>
+                        <div class="bg-white p-5 rounded-xl shadow border-l-4 border-green-500">
+                            <span class="text-xs text-slate-400 font-bold uppercase">Receita Mensal</span>
+                            <p class="font-display text-3xl font-bold text-slate-800 mt-1">18.4M Kz</p>
+                        </div>
+                        <div class="bg-white p-5 rounded-xl shadow border-l-4 border-cfcAccent">
+                            <span class="text-xs text-slate-400 font-bold uppercase">Itens Multimédia</span>
+                            <p class="font-display text-3xl font-bold text-slate-800 mt-1">${(clubData.multimedia || []).length}</p>
+                        </div>
+                        <div class="bg-white p-5 rounded-xl shadow border-l-4 border-yellow-500">
+                            <span class="text-xs text-slate-400 font-bold uppercase">Mensagens Contacto</span>
+                            <p class="font-display text-3xl font-bold text-slate-800 mt-1">${(clubData.mensagensContacto || []).length}</p>
+                        </div>
+                    </div>
+
+                    <div class="bg-white p-6 rounded-2xl shadow">
+                        <h3 class="font-display text-lg font-bold text-cfcDarkBlue uppercase mb-3"><i class="fas fa-history text-cfcBlue mr-2"></i> Registo de Auditoria (Últimas Ações)</h3>
+                        <div class="divide-y text-xs">
+                            ${logs.slice(0, 8).map(l => `
+                                <div class="py-2.5 flex justify-between items-center">
+                                    <span><strong class="text-cfcBlue">${l.usuario}</strong> — ${l.acao}</span>
+                                    <span class="text-slate-400">${l.data}</span>
+                                </div>
+                            `).join('') || '<p class="text-slate-400">Sem registos ainda.</p>'}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // ==========================================
+        // 2. ÁREA DE SÓCIOS & CRM
+        // ==========================================
+        function renderBoSocios(box) {
+            box.innerHTML = `
+                <div class="fade-in space-y-6">
+                    <div class="bg-white p-6 rounded-2xl shadow border-l-8 border-cfcBlue flex flex-wrap justify-between items-center gap-4">
+                        <div>
+                            <h2 class="font-display text-2xl font-bold text-cfcDarkBlue uppercase">Gestão de Sócios & Quotas</h2>
+                            <p class="text-xs text-slate-500">Módulo dedicado à administração de associados e cobrança de quotas.</p>
+                        </div>
+                    </div>
+
+                    <div class="bg-white p-6 rounded-2xl shadow space-y-4">
+                        <h3 class="font-bold text-sm uppercase text-cfcDarkBlue">Adicionar Novo Sócio</h3>
+                        <form onsubmit="addSocio(event)" class="grid grid-cols-1 sm:grid-cols-4 gap-3">
+                            <input type="text" id="soc-nome" required placeholder="Nome completo" class="border rounded-lg px-3 py-2 text-xs">
+                            <select id="soc-cat" class="border rounded-lg px-3 py-2 text-xs">
+                                <option>Sócio Efetivo</option>
+                                <option>Sócio VIP Teca</option>
+                                <option>Sócio Correspondente</option>
+                            </select>
+                            <input type="text" id="soc-tel" required placeholder="Telemóvel (+244...)" class="border rounded-lg px-3 py-2 text-xs">
+                            <button type="submit" class="bg-cfcBlue text-white font-bold rounded-lg px-4 py-2 text-xs hover:bg-cfcDarkBlue">Registar Sócio</button>
+                        </form>
+                    </div>
+
+                    <div class="bg-white rounded-2xl shadow overflow-x-auto">
+                        <table class="w-full text-left text-xs">
+                            <thead class="bg-cfcDarkBlue text-white uppercase">
+                                <tr>
+                                    <th class="p-3.5">Nº Sócio</th>
+                                    <th class="p-3.5">Nome</th>
+                                    <th class="p-3.5">Categoria</th>
+                                    <th class="p-3.5">Telemóvel</th>
+                                    <th class="p-3.5">Estado Quotas</th>
+                                    <th class="p-3.5">Ação</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y">
+                                ${(clubData.sociosCRM || []).map((s, idx) => `
+                                    <tr>
+                                        <td class="p-3.5 font-bold text-cfcBlue">${s.id}</td>
+                                        <td class="p-3.5 font-semibold">${s.nome}</td>
+                                        <td class="p-3.5">${s.categoria}</td>
+                                        <td class="p-3.5">${s.telemovel}</td>
+                                        <td class="p-3.5"><span class="px-2 py-0.5 rounded font-bold ${s.quotas === 'Em dia' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}">${s.quotas}</span></td>
+                                        <td class="p-3.5">
+                                            <button onclick="toggleQuota(${idx})" class="text-cfcBlue font-bold hover:underline">Alternar Estado</button>
+                                        </td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+        }
+
+        function addSocio(e) {
+            e.preventDefault();
+            const nome = document.getElementById('soc-nome').value.trim();
+            const categoria = document.getElementById('soc-cat').value;
+            const telemovel = document.getElementById('soc-tel').value.trim();
+            const num = 'CFC-' + String((clubData.sociosCRM || []).length + 1).padStart(3, '0');
+            clubData.sociosCRM.push({ id: num, nome, categoria, quotas: 'Em dia', telemovel });
+            saveClubData();
+            logAudit(`Registou novo sócio ${num} (${nome})`);
+            showBoToast(`Sócio ${num} registado!`);
+            selectBoTab('socios');
+        }
+
+        function toggleQuota(idx) {
+            const s = clubData.sociosCRM[idx];
+            s.quotas = s.quotas === 'Em dia' ? 'Pendente' : 'Em dia';
+            saveClubData();
+            logAudit(`Atualizou quotas do sócio ${s.id} para "${s.quotas}"`);
+            selectBoTab('socios');
+        }
+
+        // ==========================================
+        // 3. FINANÇAS & RECEITAS
+        // ==========================================
+        function renderBoFinancas(box) {
+            box.innerHTML = `
+                <div class="fade-in space-y-6">
+                    <div class="bg-white p-6 rounded-2xl shadow border-l-8 border-green-600">
+                        <h2 class="font-display text-2xl font-bold text-cfcDarkBlue uppercase">Departamento Financeiro</h2>
+                        <p class="text-xs text-slate-500">Controlo de receitas de bilheteira, quotas de sócios, patrocínios e loja oficial.</p>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div class="bg-white p-5 rounded-xl shadow"><span class="text-xs text-slate-400 font-bold uppercase">Quotas de Sócios (Mês)</span><p class="font-display text-2xl font-bold text-cfcBlue mt-1">8.250.000 Kz</p></div>
+                        <div class="bg-white p-5 rounded-xl shadow"><span class="text-xs text-slate-400 font-bold uppercase">Receita Bilheteira</span><p class="font-display text-2xl font-bold text-green-600 mt-1">12.400.000 Kz</p></div>
+                        <div class="bg-white p-5 rounded-xl shadow"><span class="text-xs text-slate-400 font-bold uppercase">Contratos Patrocínio</span><p class="font-display text-2xl font-bold text-cfcDarkBlue mt-1">25.000.000 Kz</p></div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // ==========================================
+        // 4. GESTÃO OPERACIONAL & NOTÍCIAS
+        // ==========================================
+        function renderBoGestao(box) {
+            box.innerHTML = `
+                <div class="fade-in space-y-6">
+                    <div class="bg-white p-6 rounded-2xl shadow border-l-8 border-cfcAccent">
+                        <h2 class="font-display text-2xl font-bold text-cfcDarkBlue uppercase">Gestão Operacional & Publicação de Notícias</h2>
+                        <p class="text-xs text-slate-500">As notícias publicadas aqui aparecem imediatamente no site público.</p>
+                    </div>
+                    <form onsubmit="publishNews(event)" class="bg-white p-6 rounded-2xl shadow space-y-4">
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <input type="text" id="news-title" required placeholder="Título da notícia..." class="md:col-span-2 border rounded-lg px-3 py-2 text-xs">
+                            <select id="news-cat" class="border rounded-lg px-3 py-2 text-xs">
+                                <option>Equipa Principal</option>
+                                <option>Transferências</option>
+                                <option>Formação</option>
+                                <option>Modalidades</option>
+                            </select>
+                        </div>
+                        <button type="submit" class="bg-cfcBlue text-white font-bold px-5 py-2.5 rounded-lg text-xs hover:bg-cfcDarkBlue">Publicar no Site</button>
+                    </form>
+                    <div class="bg-white p-6 rounded-2xl shadow divide-y text-xs">
+                        ${(clubData.noticias || []).map((n, i) => `
+                            <div class="py-3 flex justify-between items-center">
+                                <div><span class="font-bold text-cfcBlue">[${n.cat}]</span> <strong>${n.titulo}</strong> <span class="text-slate-400">(${n.data})</span></div>
+                                <button onclick="deleteNews(${i})" class="text-red-600 font-bold hover:underline">Remover</button>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+        }
+
+        function publishNews(e) {
+            e.preventDefault();
+            const titulo = document.getElementById('news-title').value.trim();
+            const cat = document.getElementById('news-cat').value;
+            clubData.noticias.unshift({
+                id: Date.now(),
+                titulo,
+                data: new Date().toISOString().slice(0, 10),
+                cat,
+                img: "https://images.unsplash.com/photo-1508098682722-e99c43a406b2?auto=format&fit=crop&w=600&q=80"
+            });
+            saveClubData();
+            logAudit(`Publicou notícia: "${titulo}"`);
+            showBoToast("Notícia publicada no site!");
+            selectBoTab('gestao');
+        }
+
+        function deleteNews(idx) {
+            const removed = clubData.noticias.splice(idx, 1)[0];
+            saveClubData();
+            logAudit(`Removeu notícia: "${removed.titulo}"`);
+            selectBoTab('gestao');
+        }
+
+        // ==========================================
+        // 5. BILHETERIA
+        // ==========================================
+        function renderBoBilheteria(box) {
+            box.innerHTML = `
+                <div class="fade-in space-y-6">
+                    <div class="bg-white p-6 rounded-2xl shadow border-l-8 border-cfcBlue">
+                        <h2 class="font-display text-2xl font-bold text-cfcDarkBlue uppercase">Gestão de Bilheteria • Estádio Nacional do Teca</h2>
+                        <p class="text-xs text-slate-500">Controlo de lotes e emissão de ingressos por bancada.</p>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+                        <div class="bg-white p-5 rounded-xl shadow"><h4 class="font-bold text-sm">Bancada Geral</h4><p class="text-slate-500 mt-1">Vendidos: 24.500 / 30.000</p><div class="w-full bg-slate-100 h-2 rounded mt-2"><div class="bg-cfcBlue h-2 rounded" style="width:81%"></div></div></div>
+                        <div class="bg-white p-5 rounded-xl shadow"><h4 class="font-bold text-sm">Bancada Central</h4><p class="text-slate-500 mt-1">Vendidos: 6.200 / 12.000</p><div class="w-full bg-slate-100 h-2 rounded mt-2"><div class="bg-cfcAccent h-2 rounded" style="width:52%"></div></div></div>
+                        <div class="bg-white p-5 rounded-xl shadow"><h4 class="font-bold text-sm">Camarotes VIP</h4><p class="text-slate-500 mt-1">Vendidos: 750 / 1.000</p><div class="w-full bg-slate-100 h-2 rounded mt-2"><div class="bg-green-600 h-2 rounded" style="width:75%"></div></div></div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // ==========================================
+        // 6. MULTIMÉDIA (ADICIONAR FOTOS, VÍDEOS E CARROSSÉIS)
+        // ==========================================
+        function renderBoMultimedia(box) {
+            box.innerHTML = `
+                <div class="fade-in space-y-6">
+                    <div class="bg-white p-6 rounded-2xl shadow border-l-8 border-cfcAccent">
+                        <h2 class="font-display text-2xl font-bold text-cfcDarkBlue uppercase">Gestão Multimédia (Fotos, Vídeos & Carrosséis)</h2>
+                        <p class="text-xs text-slate-500">Publique fotografias, vídeos ou carrosséis com data para filtragem e partilha no site.</p>
+                    </div>
+
+                    <form onsubmit="addMediaItem(event)" class="bg-white p-6 rounded-2xl shadow space-y-4 text-xs">
+                        <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
+                            <select id="m-tipo" onchange="toggleMediaInputs()" class="border rounded-lg px-3 py-2 font-bold">
+                                <option value="foto">Fotografia Única</option>
+                                <option value="carrossel">Carrossel de Imagens</option>
+                                <option value="video">Vídeo</option>
+                            </select>
+                            <input type="text" id="m-titulo" required placeholder="Título do registo..." class="md:col-span-2 border rounded-lg px-3 py-2">
+                            <input type="date" id="m-data" required value="${new Date().toISOString().slice(0, 10)}" class="border rounded-lg px-3 py-2">
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <input type="text" id="m-cat" value="Equipa Principal" placeholder="Categoria" class="border rounded-lg px-3 py-2">
+                            <input type="text" id="m-urls" required placeholder="URL da imagem (para Carrossel, separe várias URLs por vírgula)" class="border rounded-lg px-3 py-2">
+                        </div>
+                        <div id="m-video-extra" class="hidden">
+                            <input type="text" id="m-video-url" placeholder="URL do ficheiro de vídeo (.mp4)" class="w-full border rounded-lg px-3 py-2">
+                        </div>
+                        <input type="text" id="m-desc" required placeholder="Descrição breve..." class="w-full border rounded-lg px-3 py-2">
+                        <button type="submit" class="bg-cfcBlue text-white font-bold px-5 py-2.5 rounded-lg hover:bg-cfcDarkBlue">Publicar na Galeria Multimédia</button>
+                    </form>
+
+                    <div class="bg-white p-6 rounded-2xl shadow divide-y text-xs">
+                        ${(clubData.multimedia || []).map((m, i) => `
+                            <div class="py-3 flex justify-between items-center gap-3">
+                                <div>
+                                    <span class="uppercase font-bold text-cfcBlue">[${m.tipo}]</span>
+                                    <strong>${m.titulo}</strong>
+                                    <span class="text-slate-400 ml-2">${m.data}</span>
+                                </div>
+                                <button onclick="deleteMedia(${i})" class="text-red-600 font-bold hover:underline">Excluir</button>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+        }
+
+        function toggleMediaInputs() {
+            const tipo = document.getElementById('m-tipo').value;
+            document.getElementById('m-video-extra').classList.toggle('hidden', tipo !== 'video');
+        }
+
+        function addMediaItem(e) {
+            e.preventDefault();
+            const tipo = document.getElementById('m-tipo').value;
+            const titulo = document.getElementById('m-titulo').value.trim();
+            const data = document.getElementById('m-data').value;
+            const categoria = document.getElementById('m-cat').value.trim();
+            const urls = document.getElementById('m-urls').value.split(',').map(u => u.trim()).filter(Boolean);
+            const descricao = document.getElementById('m-desc').value.trim();
+
+            const item = { id: 'midia-' + Date.now(), tipo, titulo, data, categoria, descricao };
+            if (tipo === 'carrossel') item.imagens = urls;
+            else if (tipo === 'video') {
+                item.capa = urls[0];
+                item.videoUrl = document.getElementById('m-video-url').value.trim() || 'https://www.w3schools.com/html/mov_bbb.mp4';
+            } else {
+                item.imagem = urls[0];
+            }
+
+            clubData.multimedia.unshift(item);
+            saveClubData();
+            logAudit(`Publicou item multimédia (${tipo}): "${titulo}"`);
+            showBoToast("Item multimédia adicionado!");
+            selectBoTab('multimedia');
+        }
+
+        function deleteMedia(idx) {
+            const rem = clubData.multimedia.splice(idx, 1)[0];
+            saveClubData();
+            logAudit(`Removeu item multimédia: "${rem.titulo}"`);
+            selectBoTab('multimedia');
+        }
+
+        // ==========================================
+        // 7. PATROCINADORES & LOGOTIPOS
+        // ==========================================
+        function renderBoPatrocinadores(box) {
+            box.innerHTML = `
+                <div class="fade-in space-y-6">
+                    <div class="bg-white p-6 rounded-2xl shadow border-l-8 border-cfcBlue">
+                        <h2 class="font-display text-2xl font-bold text-cfcDarkBlue uppercase">Gestão de Patrocinadores</h2>
+                        <p class="text-xs text-slate-500">Adicione o caminho da imagem do patrocinador (ex.: <code>assets/patrocinadores/logo.png</code>) ou URL externa.</p>
+                    </div>
+                    <form onsubmit="addSponsor(event)" class="bg-white p-6 rounded-2xl shadow grid grid-cols-1 md:grid-cols-5 gap-3 text-xs">
+                        <input type="text" id="pat-nome" required placeholder="Nome da Empresa" class="border rounded-lg px-3 py-2">
+                        <select id="pat-nivel" class="border rounded-lg px-3 py-2">
+                            <option>Patrocinador Principal</option>
+                            <option>Patrocinador Oficial</option>
+                            <option>Parceiro Institucional</option>
+                        </select>
+                        <input type="text" id="pat-setor" required placeholder="Setor (ex: Banca)" class="border rounded-lg px-3 py-2">
+                        <input type="text" id="pat-logo" placeholder="Caminho/URL da Imagem" class="border rounded-lg px-3 py-2">
+                        <button type="submit" class="bg-cfcBlue text-white font-bold rounded-lg px-4 py-2 hover:bg-cfcDarkBlue">Adicionar</button>
+                    </form>
+                    <div class="bg-white p-6 rounded-2xl shadow divide-y text-xs">
+                        ${(clubData.patrocinadores || []).map((p, i) => `
+                            <div class="py-3 flex justify-between items-center">
+                                <div><strong>${p.nome}</strong> <span class="text-cfcBlue font-bold">(${p.nivel})</span> — <span class="text-slate-400">${p.logo || 'Sem imagem definida (usa sigla)'}</span></div>
+                                <button onclick="deleteSponsor(${i})" class="text-red-600 font-bold hover:underline">Remover</button>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+        }
+
+        function addSponsor(e) {
+            e.preventDefault();
+            const nome = document.getElementById('pat-nome').value.trim();
+            const nivel = document.getElementById('pat-nivel').value;
+            const setor = document.getElementById('pat-setor').value.trim();
+            const logo = document.getElementById('pat-logo').value.trim();
+            clubData.patrocinadores.push({
+                id: 'pat-' + Date.now(),
+                nome, nivel, setor, logo,
+                sigla: nome.slice(0, 10).toUpperCase(),
+                cor: '#0047AB',
+                website: '#'
+            });
+            saveClubData();
+            logAudit(`Adicionou patrocinador: "${nome}"`);
+            showBoToast("Patrocinador adicionado!");
+            selectBoTab('patrocinadores');
+        }
+
+        function deleteSponsor(idx) {
+            const rem = clubData.patrocinadores.splice(idx, 1)[0];
+            saveClubData();
+            logAudit(`Removeu patrocinador: "${rem.nome}"`);
+            selectBoTab('patrocinadores');
+        }
+
+        // ==========================================
+        // 8. MENSAGENS RECEBIDAS PELO FORMULÁRIO DE CONTACTOS
+        // ==========================================
+        function renderBoContactos(box) {
+            const msgs = clubData.mensagensContacto || [];
+            box.innerHTML = `
+                <div class="fade-in space-y-6">
+                    <div class="bg-white p-6 rounded-2xl shadow border-l-8 border-cfcAccent">
+                        <h2 class="font-display text-2xl font-bold text-cfcDarkBlue uppercase">Mensagens de Contacto por Departamento</h2>
+                        <p class="text-xs text-slate-500">Mensagens enviadas pelo site público encaminhadas pelo código do destinatário.</p>
+                    </div>
+                    <div class="space-y-3">
+                        ${msgs.length === 0 ? '<div class="bg-white p-8 rounded-2xl shadow text-center text-xs text-slate-400">Nenhuma mensagem recebida ainda.</div>' : msgs.map((m, i) => `
+                            <div class="bg-white p-5 rounded-xl shadow border-l-4 ${m.estado === 'Respondida' ? 'border-green-500' : 'border-cfcBlue'} text-xs space-y-2">
+                                <div class="flex flex-wrap justify-between items-center gap-2">
+                                    <div>
+                                        <span class="font-bold text-cfcBlue">#${m.protocolo}</span> •
+                                        <span class="bg-cfcLightBlue text-cfcDarkBlue font-bold px-2 py-0.5 rounded">${m.deptNome}</span>
+                                    </div>
+                                    <span class="text-slate-400">${m.data}</span>
+                                </div>
+                                <p class="font-bold text-sm text-slate-800">${m.assunto}</p>
+                                <p class="text-slate-600">${m.mensagem}</p>
+                                <div class="pt-2 border-t flex justify-between items-center text-[11px]">
+                                    <span>Remetente: <strong>${m.nome}</strong> (${m.respostaPara})</span>
+                                    <button onclick="markMsgAnswered(${i})" class="font-bold ${m.estado === 'Respondida' ? 'text-green-600' : 'text-cfcBlue hover:underline'}">
+                                        ${m.estado === 'Respondida' ? '✓ Respondida' : 'Marcar como Respondida'}
+                                    </button>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+        }
+
+        function markMsgAnswered(idx) {
+            clubData.mensagensContacto[idx].estado = 'Respondida';
+            saveClubData();
+            logAudit(`Marcou mensagem #${clubData.mensagensContacto[idx].protocolo} como respondida`);
+            selectBoTab('contactos');
+        }
+
+        // ==========================================
+        // 9. ADMINISTRAÇÃO DE UTILIZADORES & PERMISSÕES GRANULARES (EXCLUSIVO ADMIN)
+        // ==========================================
+        function renderBoUsuarios(box) {
+            if (!currentUser.isAdmin) {
+                box.innerHTML = `<div class="bg-red-50 text-red-700 p-6 rounded-xl font-bold text-xs">Acesso restrito ao Administrador Geral.</div>`;
+                return;
+            }
+
+            box.innerHTML = `
+                <div class="fade-in space-y-6">
+                    <div class="bg-cfcDarkBlue text-white p-6 rounded-2xl shadow-lg border-b-4 border-cfcAccent">
+                        <h2 class="font-display text-2xl font-bold uppercase">Administração de Utilizadores & Permissões por Área</h2>
+                        <p class="text-xs text-blue-200 mt-1">Crie novos utilizadores e defina exatamente quais áreas cada utilizador pode ver e gerir (ex.: apenas Sócios, apenas Finanças, apenas Bilheteria ou Gestão).</p>
+                    </div>
+
+                    <!-- FORMULÁRIO PARA CRIAR NOVO UTILIZADOR COM PERMISSÕES ESPECÍFICAS -->
+                    <form onsubmit="createNewBackofficeUser(event)" class="bg-white p-6 rounded-2xl shadow space-y-4 text-xs">
+                        <h3 class="font-display text-lg font-bold text-cfcDarkBlue uppercase border-b pb-2">
+                            <i class="fas fa-user-plus text-cfcBlue mr-2"></i> Adicionar Novo Utilizador
+                        </h3>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                            <div>
+                                <label class="block font-bold text-slate-600 mb-1">Nome Completo *</label>
+                                <input type="text" id="new-u-name" required placeholder="Ex: Pedro Neto" class="w-full border rounded-lg px-3 py-2">
+                            </div>
+                            <div>
+                                <label class="block font-bold text-slate-600 mb-1">E-mail de Acesso *</label>
+                                <input type="email" id="new-u-email" required placeholder="pedro@carlosfc.ao" class="w-full border rounded-lg px-3 py-2">
+                            </div>
+                            <div>
+                                <label class="block font-bold text-slate-600 mb-1">Palavra-Passe *</label>
+                                <input type="text" id="new-u-pass" required value="cfc2026" class="w-full border rounded-lg px-3 py-2">
+                            </div>
+                            <div>
+                                <label class="block font-bold text-slate-600 mb-1">Cargo / Função *</label>
+                                <input type="text" id="new-u-role" required placeholder="Ex: Técnico de Bilheteria" class="w-full border rounded-lg px-3 py-2">
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block font-bold text-slate-700 uppercase mb-2">Selecione as Áreas Autorizadas para este Utilizador:</label>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 bg-slate-50 p-4 rounded-xl border border-slate-200">
+                                ${ALL_PERMISSIONS.filter(p => p.id !== 'usuarios').map(p => `
+                                    <label class="flex items-center space-x-2.5 bg-white p-2.5 rounded-lg border border-slate-200 cursor-pointer hover:border-cfcBlue">
+                                        <input type="checkbox" name="new-u-perms" value="${p.id}" class="rounded text-cfcBlue focus:ring-cfcBlue">
+                                        <i class="fas ${p.icon} text-cfcBlue w-4"></i>
+                                        <span class="font-semibold text-slate-700">${p.label}</span>
+                                    </label>
+                                `).join('')}
+                            </div>
+                        </div>
+
+                        <button type="submit" class="bg-cfcBlue hover:bg-cfcDarkBlue text-white font-bold px-6 py-2.5 rounded-xl transition shadow">
+                            <i class="fas fa-save mr-1"></i> Criar Utilizador com Permissões Definidas
+                        </button>
+                    </form>
+
+                    <!-- LISTA DE UTILIZADORES EXISTENTES COM EDIÇÃO DIRETA DE PERMISSÕES -->
+                    <div class="bg-white p-6 rounded-2xl shadow space-y-4">
+                        <h3 class="font-display text-lg font-bold text-cfcDarkBlue uppercase">Utilizadores Registados & Controlo de Permissões</h3>
+                        <div class="space-y-4">
+                            ${usersList.map((u, idx) => `
+                                <div class="p-4 rounded-xl border ${u.ativo ? 'border-slate-200 bg-slate-50/60' : 'border-red-200 bg-red-50/40'} text-xs space-y-3">
+                                    <div class="flex flex-wrap justify-between items-center gap-2">
+                                        <div>
+                                            <span class="font-bold text-sm text-cfcDarkBlue">${u.nome}</span>
+                                            <span class="text-slate-500 ml-2">(${u.email})</span>
+                                            <span class="ml-2 px-2 py-0.5 rounded font-bold text-[10px] ${u.isAdmin ? 'bg-cfcBlue text-white' : 'bg-white border text-slate-600'}">${u.cargo}</span>
+                                        </div>
+                                        ${u.isAdmin ? '<span class="text-[11px] font-bold text-cfcBlue">Acesso Integral (Admin)</span>' : `
+                                            <div class="flex items-center space-x-3">
+                                                <button onclick="toggleUserActive(${idx})" class="font-bold ${u.ativo ? 'text-amber-600' : 'text-green-600'} hover:underline">
+                                                    ${u.ativo ? 'Desativar Conta' : 'Reativar Conta'}
+                                                </button>
+                                                <button onclick="deleteBackofficeUser(${idx})" class="font-bold text-red-600 hover:underline">Remover</button>
+                                            </div>
+                                        `}
+                                    </div>
+
+                                    ${!u.isAdmin ? `
+                                        <div class="flex flex-wrap gap-2 pt-2 border-t border-slate-200">
+                                            ${ALL_PERMISSIONS.filter(p => p.id !== 'usuarios').map(p => {
+                                                const checked = u.permissoes.includes(p.id);
+                                                return `
+                                                    <button type="button" onclick="toggleUserPermission(${idx}, '${p.id}')"
+                                                        class="px-2.5 py-1 rounded-lg font-semibold transition flex items-center space-x-1 ${checked ? 'bg-cfcBlue text-white' : 'bg-white border border-slate-300 text-slate-500 hover:border-cfcBlue'}">
+                                                        <i class="fas ${checked ? 'fa-check-circle' : 'fa-circle'} text-[10px] mr-1"></i>
+                                                        <span>${p.label}</span>
+                                                    </button>
+                                                `;
+                                            }).join('')}
+                                        </div>
+                                    ` : ''}
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function createNewBackofficeUser(e) {
+            e.preventDefault();
+            const nome = document.getElementById('new-u-name').value.trim();
+            const email = document.getElementById('new-u-email').value.trim();
+            const senha = document.getElementById('new-u-pass').value.trim();
+            const cargo = document.getElementById('new-u-role').value.trim();
+            const perms = Array.from(document.querySelectorAll('input[name="new-u-perms"]:checked')).map(cb => cb.value);
+
+            if (perms.length === 0) return alert("Selecione pelo menos uma área autorizada para este utilizador.");
+            if (usersList.some(u => u.email.toLowerCase() === email.toLowerCase())) return alert("Já existe um utilizador com este e-mail.");
+
+            usersList.push({
+                id: 'usr-' + Date.now(),
+                nome, email, senha, cargo,
+                isAdmin: false,
+                ativo: true,
+                permissoes: perms
+            });
+            saveUsers();
+            logAudit(`Criou utilizador "${nome}" com permissões: [${perms.join(', ')}]`);
+            showBoToast(`Utilizador ${nome} criado com sucesso!`);
+            selectBoTab('usuarios');
+        }
+
+        function toggleUserPermission(userIdx, permId) {
+            const u = usersList[userIdx];
+            if (!u || u.isAdmin) return;
+            if (u.permissoes.includes(permId)) {
+                u.permissoes = u.permissoes.filter(p => p !== permId);
+            } else {
+                u.permissoes.push(permId);
+            }
+            saveUsers();
+            logAudit(`Alterou permissões de "${u.nome}" para [${u.permissoes.join(', ')}]`);
+            showBoToast(`Permissões de ${u.nome} atualizadas!`);
+            selectBoTab('usuarios');
+        }
+
+        function toggleUserActive(userIdx) {
+            const u = usersList[userIdx];
+            u.ativo = !u.ativo;
+            saveUsers();
+            logAudit(`${u.ativo ? 'Reativou' : 'Desativou'} conta de "${u.nome}"`);
+            selectBoTab('usuarios');
+        }
+
+        function deleteBackofficeUser(userIdx) {
+            const rem = usersList.splice(userIdx, 1)[0];
+            saveUsers();
+            logAudit(`Removeu utilizador "${rem.nome}"`);
+            selectBoTab('usuarios');
+        }
+
+        window.onload = () => {
+            renderQuickLogins();
+        };
+    </script>
+</body>
+</html>

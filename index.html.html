@@ -7,6 +7,8 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Biblioteca para gerar ficheiros Excel (.xlsx). Se estiver offline, o sistema exporta CSV (abre no Excel). -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script>
         tailwind.config = {
             theme: {
@@ -26,8 +28,16 @@
         }
     </script>
     <style>
+        html { scroll-behavior: smooth; }
         .fade-in { animation: fadeIn 0.25s ease-in-out; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+        .shake { animation: shake 0.35s; }
+        @keyframes shake { 20%,60% { transform: translateX(-6px); } 40%,80% { transform: translateX(6px); } }
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 8px; }
+        button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid #00A3FF; outline-offset: 2px; }
+        .bar-grow { transform-origin: bottom; animation: grow .5s ease-out; }
+        @keyframes grow { from { transform: scaleY(0); } to { transform: scaleY(1); } }
     </style>
 </head>
 <body class="bg-slate-100 text-slate-800 min-h-screen">
@@ -36,38 +46,41 @@
     <!-- ECRÃ DE AUTENTICAÇÃO DO BACK-OFFICE        -->
     <!-- ========================================== -->
     <div id="auth-screen" class="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-cfcDarkBlue via-cfcBlue to-slate-900">
-        <div class="bg-white rounded-2xl max-w-lg w-full p-8 shadow-2xl border-t-8 border-cfcAccent fade-in">
+        <div id="auth-card" class="bg-white rounded-2xl max-w-lg w-full p-6 sm:p-8 shadow-2xl border-t-8 border-cfcAccent fade-in">
             <div class="flex items-center justify-between mb-6">
                 <div class="flex items-center space-x-3">
                     <div class="w-12 h-12 bg-cfcBlue text-white rounded-full flex items-center justify-center font-display font-bold text-lg">CFC</div>
                     <div>
-                        <h1 class="font-display text-2xl font-bold text-cfcDarkBlue uppercase">Back-Office Separado</h1>
+                        <h1 class="font-display text-2xl font-bold text-cfcDarkBlue uppercase">Back-Office</h1>
                         <p class="text-xs text-slate-500">Carlos Futebol Clube • Gestão & Permissões</p>
                     </div>
                 </div>
-                <a href="index.html" class="text-xs font-bold text-cfcBlue hover:underline"><i class="fas fa-arrow-left mr-1"></i> Site</a>
+                <a id="public-site-link-login" href="#" class="hidden text-xs font-bold text-cfcBlue hover:underline"><i class="fas fa-arrow-left mr-1"></i> Site</a>
             </div>
+
+            <div id="auth-msg" class="hidden"></div>
 
             <form onsubmit="handleBackofficeLogin(event)" class="space-y-4">
                 <div>
-                    <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Utilizador / E-mail Corporativo</label>
-                    <input type="text" id="bo-login-user" value="admin@carlosfc.ao" required class="w-full border border-slate-300 rounded-lg px-3.5 py-2.5 text-sm focus:outline-none focus:border-cfcBlue">
+                    <label for="bo-login-user" class="block text-xs font-bold text-slate-700 uppercase mb-1">E-mail de acesso</label>
+                    <input type="text" id="bo-login-user" autocomplete="username" required class="w-full border border-slate-300 rounded-lg px-3.5 py-2.5 text-sm focus:outline-none focus:border-cfcBlue">
                 </div>
                 <div>
-                    <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Palavra-Passe</label>
-                    <input type="password" id="bo-login-pass" value="admin123" required class="w-full border border-slate-300 rounded-lg px-3.5 py-2.5 text-sm focus:outline-none focus:border-cfcBlue">
+                    <label for="bo-login-pass" class="block text-xs font-bold text-slate-700 uppercase mb-1">Palavra-passe</label>
+                    <div class="relative">
+                        <input type="password" id="bo-login-pass" autocomplete="current-password" required class="w-full border border-slate-300 rounded-lg pl-3.5 pr-11 py-2.5 text-sm focus:outline-none focus:border-cfcBlue">
+                        <button type="button" onclick="togglePass()" aria-label="Mostrar ou esconder a palavra-passe" class="absolute right-0 top-0 h-full px-3 text-slate-400 hover:text-cfcBlue"><i id="pass-eye" class="fas fa-eye"></i></button>
+                    </div>
                 </div>
                 <button type="submit" class="w-full bg-cfcBlue hover:bg-cfcDarkBlue text-white font-bold py-3 rounded-xl text-xs uppercase tracking-wider shadow-lg transition">
-                    <i class="fas fa-lock-open mr-2"></i> Entrar no Painel Administrativo
+                    <i class="fas fa-lock-open mr-2"></i> Entrar no Painel
                 </button>
             </form>
 
-            <!-- ATALHOS DE DEMONSTRAÇÃO PARA TESTAR PERMISSÕES POR UTILIZADOR -->
-            <div class="mt-6 pt-5 border-t border-slate-100">
-                <p class="text-[11px] font-bold text-slate-400 uppercase mb-2.5">Acesso Rápido por Perfil (Testar Permissões):</p>
-                <div id="quick-login-users" class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-                    <!-- Injetado via JS -->
-                </div>
+            <div id="demo-box" class="hidden mt-6 pt-5 border-t border-slate-100">
+                <p class="text-[11px] font-bold text-slate-400 uppercase mb-2.5">Modo demonstração • Acesso rápido por perfil:</p>
+                <div id="quick-login-users" class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs"></div>
+                <p class="text-[10px] text-slate-400 mt-3">Os dados ficam guardados apenas neste navegador.</p>
             </div>
         </div>
     </div>
@@ -75,251 +88,929 @@
     <!-- ========================================== -->
     <!-- PAINEL ADMINISTRATIVO (APÓS LOGIN)         -->
     <!-- ========================================== -->
-    <div id="dashboard-screen" class="hidden flex h-screen overflow-hidden">
-        <!-- Menu Lateral do Backoffice (Filtrado pelas permissões do utilizador!) -->
-        <aside class="w-68 bg-cfcDarkBlue text-white flex flex-col h-full shadow-xl flex-shrink-0">
-            <div class="p-6 border-b border-blue-900">
-                <span class="text-[10px] font-bold uppercase tracking-widest text-cfcAccent">Back-Office Oficial</span>
-                <h2 class="font-display text-xl font-bold uppercase mt-0.5">Carlos Futebol Clube</h2>
-                <div id="logged-user-card" class="mt-3 bg-blue-950/70 p-3 rounded-xl border border-blue-800 text-xs"></div>
-            </div>
+    <div id="dashboard-screen" class="hidden h-screen overflow-hidden">
+        <div id="sidebar-overlay" class="hidden fixed inset-0 bg-black/50 z-30 md:hidden" onclick="setMenu(false)"></div>
 
-            <nav id="bo-nav-menu" class="flex-1 p-3 space-y-1 overflow-y-auto text-xs font-semibold">
-                <!-- Módulos permitidos ao utilizador logado -->
-            </nav>
+        <!-- MENU LATERAL: entra e sai com o botão das três barras -->
+        <aside id="sidebar" aria-label="Menu principal" class="fixed md:static inset-y-0 left-0 z-40 w-72 -translate-x-full md:translate-x-0 transition-all duration-300 bg-cfcDarkBlue text-white h-full shadow-xl flex-shrink-0 overflow-hidden">
+            <div class="w-72 h-full flex flex-col">
+                <div class="p-5 border-b border-blue-900">
+                    <div class="flex items-start justify-between">
+                        <div>
+                            <span class="text-[10px] font-bold uppercase tracking-widest text-cfcAccent">Back-Office Oficial</span>
+                            <h2 class="font-display text-xl font-bold uppercase mt-0.5">Carlos Futebol Clube</h2>
+                        </div>
+                        <button onclick="setMenu(false, true)" aria-label="Fechar o menu" class="w-8 h-8 rounded-lg bg-white/10 hover:bg-white/20 flex items-center justify-center"><i class="fas fa-times"></i></button>
+                    </div>
+                    <div id="logged-user-card" class="mt-4 bg-blue-950/70 p-3 rounded-xl border border-blue-800 text-xs flex items-center gap-3"></div>
+                </div>
 
-            <div class="p-4 border-t border-blue-900 space-y-2">
-                <a href="index.html" target="_blank" class="w-full bg-cfcBlue hover:bg-blue-600 text-white font-bold py-2 px-3 rounded-lg text-xs flex items-center justify-center transition">
-                    <i class="fas fa-external-link-alt mr-2"></i> Ver Site Público
-                </a>
-                <button onclick="logoutBackoffice()" class="w-full bg-white/10 hover:bg-red-600 text-white font-bold py-2 px-3 rounded-lg text-xs flex items-center justify-center transition">
-                    <i class="fas fa-sign-out-alt mr-2"></i> Terminar Sessão
-                </button>
+                <nav id="bo-nav-menu" class="flex-1 p-3 space-y-1 overflow-y-auto text-xs font-semibold"></nav>
+
+                <div class="p-4 border-t border-blue-900 space-y-2">
+                    <a id="public-site-link-nav" href="#" target="_blank" class="hidden w-full bg-cfcBlue hover:bg-blue-600 text-white font-bold py-2 px-3 rounded-lg text-xs flex items-center justify-center transition">
+                        <i class="fas fa-external-link-alt mr-2"></i> Ver Site Público
+                    </a>
+                    <button onclick="logoutBackoffice()" class="w-full bg-white/10 hover:bg-red-600 text-white font-bold py-2.5 px-3 rounded-lg text-xs flex items-center justify-center transition">
+                        <i class="fas fa-sign-out-alt mr-2"></i> Terminar Sessão
+                    </button>
+                </div>
             </div>
         </aside>
 
-        <!-- Área de Trabalho -->
-        <main class="flex-1 overflow-y-auto p-6 md:p-8">
-            <div id="bo-content" class="max-w-6xl mx-auto space-y-6"></div>
-        </main>
+        <div class="flex-1 flex flex-col overflow-hidden min-w-0">
+            <!-- BARRA SUPERIOR -->
+            <header class="bg-white border-b border-slate-200 flex items-center gap-2 sm:gap-3 px-3 md:px-6 py-2.5 shadow-sm flex-shrink-0">
+                <button id="burger" onclick="toggleSidebar()" aria-label="Abrir ou fechar o menu" aria-expanded="false" class="w-11 h-11 rounded-xl bg-cfcBlue text-white flex items-center justify-center hover:bg-cfcDarkBlue transition shadow flex-shrink-0 text-lg">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <div class="min-w-0 flex-1">
+                    <p id="topbar-title" class="font-display uppercase text-cfcDarkBlue text-base md:text-lg truncate leading-tight">Back-Office</p>
+                    <p id="topbar-date" class="hidden sm:block text-[11px] text-slate-400 capitalize"></p>
+                </div>
+                <button onclick="openPalette()" aria-label="Pesquisar" title="Pesquisar (Ctrl+K)" class="h-10 px-3 rounded-xl bg-slate-100 hover:bg-cfcLightBlue text-slate-600 flex items-center gap-2 text-xs font-semibold transition">
+                    <i class="fas fa-search"></i><span class="hidden md:inline">Pesquisar</span><kbd class="hidden lg:inline text-[10px] bg-white border rounded px-1.5 py-0.5 text-slate-400">Ctrl K</kbd>
+                </button>
+                <button onclick="showHelp()" aria-label="Ajuda desta página" title="Ajuda desta página" class="w-10 h-10 rounded-xl bg-slate-100 hover:bg-cfcLightBlue text-slate-600 flex items-center justify-center transition"><i class="fas fa-question"></i></button>
+                <button onclick="openAlerts()" aria-label="Avisos" title="Avisos" class="relative w-10 h-10 rounded-xl bg-slate-100 hover:bg-cfcLightBlue text-slate-600 flex items-center justify-center transition">
+                    <i class="fas fa-bell"></i>
+                    <span id="bell-badge" class="hidden absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center">0</span>
+                </button>
+            </header>
+
+            <main id="main-scroll" class="flex-1 overflow-y-auto p-4 md:p-8">
+                <div id="bo-content" class="max-w-6xl mx-auto space-y-6"></div>
+            </main>
+        </div>
     </div>
 
-    <div id="bo-toast" class="hidden fixed bottom-6 right-6 bg-cfcDarkBlue text-white px-5 py-3 rounded-xl shadow-2xl border-l-4 border-cfcAccent z-50 text-xs font-bold"></div>
+    <div id="modal-root"></div>
+    <div id="palette-root"></div>
+    <div id="bo-toast" class="hidden"></div>
 
     <script>
-        const STORAGE_KEY = 'cfc_portal_data_v2';
+        // ======================================================================
+        // CONFIGURAÇÃO
+        // ======================================================================
+        const DEMO_MODE = true;          // true = mostra logins de teste. Colocar false em produção.
+        const PUBLIC_SITE_URL = '';      // ex.: 'site.html' — endereço do site público (vazio = esconde os links)
+        const IDLE_MS = 30 * 60 * 1000;  // termina a sessão após 30 min sem atividade
+
+        const STORAGE_KEY = 'cfc_portal_data_v2';        // partilhado com o site público
         const USERS_KEY = 'cfc_backoffice_users_v2';
         const AUDIT_KEY = 'cfc_backoffice_audit_v2';
+        const SESSION_KEY = 'cfc_backoffice_session_v1';
+        const TAB_KEY = 'cfc_backoffice_tab_v1';
+        const MENU_PREF_KEY = 'cfc_backoffice_menu_v1';
+        const MIGR_KEY = 'cfc_bo_migr_loja_v1';
 
-        // TODAS AS PERMISSÕES GRANULARES DISPONÍVEIS NO CLUBE
         const ALL_PERMISSIONS = [
             { id: 'dashboard', label: 'Visão Geral & KPIs', icon: 'fa-chart-line' },
             { id: 'socios', label: 'Área de Sócios & CRM', icon: 'fa-id-card' },
+            { id: 'loja', label: 'Loja & Vendas (PDV)', icon: 'fa-shopping-bag' },
             { id: 'financas', label: 'Finanças & Receitas', icon: 'fa-coins' },
             { id: 'gestao', label: 'Gestão Operacional & Notícias', icon: 'fa-cogs' },
             { id: 'bilheteria', label: 'Bilheteria & Lotação', icon: 'fa-ticket-alt' },
             { id: 'multimedia', label: 'Multimédia (Fotos/Vídeos/Carrosséis)', icon: 'fa-photo-video' },
             { id: 'patrocinadores', label: 'Patrocinadores & Logos', icon: 'fa-handshake' },
             { id: 'contactos', label: 'Caixa de Contactos (Dept.)', icon: 'fa-envelope-open-text' },
-            { id: 'usuarios', label: 'Administração de Utilizadores', icon: 'fa-users-cog' }
+            { id: 'usuarios', label: 'Administração de Utilizadores', icon: 'fa-users-cog' },
+            { id: 'definicoes', label: 'Definições & Cópia de Segurança', icon: 'fa-shield-alt' }
         ];
+        const ADMIN_ONLY = ['usuarios', 'definicoes'];
 
-        // UTILIZADORES INICIAIS (O ADMIN PODE CRIAR NOVOS E CONFIGURAR PERMISSÕES INDIVIDUAIS)
+        const SOCIO_CATEGORIAS = ['Sócio Efetivo', 'Sócio VIP Teca', 'Sócio Correspondente'];
+        const DEFAULT_DISCOUNTS = { 'Sócio Efetivo': 10, 'Sócio VIP Teca': 20, 'Sócio Correspondente': 5 };
+        const PAGAMENTOS = ['Numerário', 'TPA / Multicaixa', 'Transferência', 'Express'];
+
+        const DEFAULT_CATALOG = [
+            { id: 'bil-geral',   nome: 'Bilhete – Bancada Geral',   cat: 'Bilhetes',  preco: 3000,  bancada: 'geral' },
+            { id: 'bil-central', nome: 'Bilhete – Bancada Central', cat: 'Bilhetes',  preco: 8000,  bancada: 'central' },
+            { id: 'bil-vip',     nome: 'Bilhete – Camarote VIP',    cat: 'Bilhetes',  preco: 25000, bancada: 'vip' },
+            { id: 'cam-1',       nome: 'Camisola Oficial 2026/27',  cat: 'Camisolas', preco: 18000, stock: 120 },
+            { id: 'cam-2',       nome: 'Camisola Alternativa',      cat: 'Camisolas', preco: 16000, stock: 80 },
+            { id: 'cas-1',       nome: 'Casaco Oficial',            cat: 'Casacos',   preco: 35000, stock: 40 },
+            { id: 'bon-1',       nome: 'Boné CFC',                  cat: 'Bonés',     preco: 6000,  stock: 150 }
+        ];
+        const DEFAULT_STANDS = {
+            geral:   { nome: 'Bancada Geral',   cap: 30000, vendidos: 24500 },
+            central: { nome: 'Bancada Central', cap: 12000, vendidos: 6200 },
+            vip:     { nome: 'Camarotes VIP',   cap: 1000,  vendidos: 750 }
+        };
+
         const defaultUsers = [
-            {
-                id: 'usr-1',
-                nome: 'Dr. Carlos Mendes (Admin)',
-                email: 'admin@carlosfc.ao',
-                senha: 'admin123',
-                cargo: 'Administrador Geral',
-                isAdmin: true,
-                ativo: true,
-                permissoes: ALL_PERMISSIONS.map(p => p.id)
-            },
-            {
-                id: 'usr-2',
-                nome: 'Helena Costa',
-                email: 'socios@carlosfc.ao',
-                senha: '123',
-                cargo: 'Gestora de Sócios',
-                isAdmin: false,
-                ativo: true,
-                permissoes: ['socios'] // Apenas área de sócio
-            },
-            {
-                id: 'usr-3',
-                nome: 'Manuel Tavares',
-                email: 'financas@carlosfc.ao',
-                senha: '123',
-                cargo: 'Diretor Financeiro',
-                isAdmin: false,
-                ativo: true,
-                permissoes: ['financas'] // Apenas finanças
-            },
-            {
-                id: 'usr-4',
-                nome: 'Sofia Mateus',
-                email: 'bilheteria@carlosfc.ao',
-                senha: '123',
-                cargo: 'Responsável Bilheteria',
-                isAdmin: false,
-                ativo: true,
-                permissoes: ['bilheteria'] // Apenas bilheteria
-            }
+            { id: 'usr-1', nome: 'Dr. Carlos Mendes (Admin)', email: 'admin@carlosfc.ao', senha: 'admin123', cargo: 'Administrador Geral', isAdmin: true, ativo: true, permissoes: ALL_PERMISSIONS.map(p => p.id) },
+            { id: 'usr-2', nome: 'Helena Costa', email: 'socios@carlosfc.ao', senha: '123', cargo: 'Gestora de Sócios', isAdmin: false, ativo: true, permissoes: ['socios'] },
+            { id: 'usr-3', nome: 'Manuel Tavares', email: 'financas@carlosfc.ao', senha: '123', cargo: 'Diretor Financeiro', isAdmin: false, ativo: true, permissoes: ['financas'] },
+            { id: 'usr-4', nome: 'Sofia Mateus', email: 'bilheteria@carlosfc.ao', senha: '123', cargo: 'Responsável Bilheteria', isAdmin: false, ativo: true, permissoes: ['bilheteria'] },
+            { id: 'usr-5', nome: 'Rui Paulo', email: 'loja@carlosfc.ao', senha: '123', cargo: 'Operador de Loja', isAdmin: false, ativo: true, permissoes: ['loja'] }
         ];
 
-        function loadUsers() {
-            const saved = localStorage.getItem(USERS_KEY);
-            if (saved) return JSON.parse(saved);
-            localStorage.setItem(USERS_KEY, JSON.stringify(defaultUsers));
-            return defaultUsers;
+        // Ajuda em linguagem simples, mostrada no topo de cada área
+        const HELP = {
+            dashboard: { t: 'a Visão Geral', s: ['Aqui vê o resumo do clube de relance.', 'Os avisos a laranja mostram o que precisa da sua atenção. Toque num para resolver.', 'Use os atalhos para ir direto às tarefas mais comuns.'] },
+            socios: { t: 'os Sócios', s: ['Para registar um sócio, preencha o quadro "Adicionar Novo Sócio".', 'Quem tem quotas pendentes aparece a vermelho. Toque em "Cobrar" para enviar um lembrete por WhatsApp.', 'Os descontos da loja definem-se no quadro "Descontos de Sócio na Loja".'] },
+            loja: { t: 'a Loja', s: ['1. Escolha se o cliente é Sócio ou Não sócio.', '2. Toque nos artigos para os pôr no carrinho.', '3. Escolha o pagamento e toque em "Finalizar Venda". O desconto de sócio é automático e Finanças recebe a venda sozinha.'] },
+            financas: { t: 'as Finanças', s: ['Escolha as datas (ou toque em Hoje, Esta semana, Este mês).', 'Veja os totais separados por sócios e não sócios.', 'Toque em "Exportar Excel" para obter o ficheiro para a contabilidade.'] },
+            gestao: { t: 'as Notícias', s: ['Escreva o título, escolha a categoria e toque em "Publicar no Site".', 'A notícia aparece logo no site público.', 'Para apagar, use "Remover" ao lado da notícia.'] },
+            bilheteria: { t: 'a Bilheteria', s: ['Veja quantos bilhetes já foram vendidos em cada bancada.', 'Os bilhetes vendidos na Loja descontam das vagas automaticamente.', 'Mude o nome do jogo e as lotações no quadro de baixo.'] },
+            multimedia: { t: 'a Multimédia', s: ['Escolha: foto, carrossel (várias fotos) ou vídeo.', 'Cole o endereço (URL) da imagem. Para carrossel, separe vários endereços com vírgula.', 'Toque em "Publicar na Galeria Multimédia".'] },
+            patrocinadores: { t: 'os Patrocinadores', s: ['Escreva o nome da empresa, o nível e o setor.', 'O logótipo é opcional: cole o endereço ou o caminho da imagem.', 'Toque em "Adicionar".'] },
+            contactos: { t: 'os Contactos', s: ['Aqui chegam as mensagens enviadas pelo site.', 'Depois de responder ao cliente, toque em "Marcar como Respondida".', 'Use o filtro para ver só as que faltam responder.'] },
+            usuarios: { t: 'os Utilizadores', s: ['Crie contas para a sua equipa e escolha só as áreas que cada pessoa pode ver.', 'Para mudar o acesso, toque nos botões azuis por baixo do nome.', 'Pode desativar uma conta sem a apagar.'] },
+            definicoes: { t: 'as Definições', s: ['Faça uma cópia de segurança com regularidade e guarde o ficheiro num local seguro.', 'Para recuperar dados, use "Restaurar cópia".', 'O registo de auditoria mostra quem fez o quê.'] }
+        };
+
+        const TOUR = [
+            { icon: 'fa-bars', title: 'O menu', text: 'Toque nas três barras, no canto superior esquerdo, para abrir ou esconder o menu com todas as áreas.' },
+            { icon: 'fa-search', title: 'Procurar tudo', text: 'Use a lupa (ou Ctrl+K no computador) para encontrar um sócio, uma venda ou ir direto a qualquer área.' },
+            { icon: 'fa-bell', title: 'Avisos inteligentes', text: 'O sino mostra o que precisa da sua atenção, como quotas em atraso, mensagens por responder ou stock a acabar.' },
+            { icon: 'fa-question', title: 'Ajuda em cada página', text: 'Cada área tem uma caixa "Como usar". Toque no ponto de interrogação para a ver outra vez.' }
+        ];
+
+        // ======================================================================
+        // UTILITÁRIOS
+        // ======================================================================
+        const $ = id => document.getElementById(id);
+        const clone = o => JSON.parse(JSON.stringify(o));
+        const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+        const kz = n => (Number(n) || 0).toLocaleString('pt-PT') + ' Kz';
+        const kzShort = n => n >= 1e6 ? (n / 1e6).toFixed(1).replace('.', ',') + 'M' : n >= 1e3 ? Math.round(n / 1e3) + 'k' : String(n);
+        const pad = (n, l = 2) => String(n).padStart(l, '0');
+        const isDesktop = () => window.matchMedia ? window.matchMedia('(min-width: 768px)').matches : window.innerWidth >= 768;
+        function isoOf(d) { return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; }
+        function todayISO() { return isoOf(new Date()); }
+        function nowHM() { const d = new Date(); return pad(d.getHours()) + ':' + pad(d.getMinutes()); }
+        function fmtDate(iso) { if (!iso) return ''; const [y, m, d] = iso.split('-'); return `${d}/${m}/${y}`; }
+        function downloadBlob(filename, blob) {
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob); a.download = filename;
+            document.body.appendChild(a); a.click(); a.remove();
         }
 
-        function saveUsers() {
-            localStorage.setItem(USERS_KEY, JSON.stringify(usersList));
+        // ======================================================================
+        // DADOS
+        // ======================================================================
+        function loadUsers() {
+            let saved = null;
+            try { saved = JSON.parse(localStorage.getItem(USERS_KEY)); } catch (e) {}
+            if (!Array.isArray(saved) || !saved.length) {
+                saved = clone(defaultUsers);
+            } else if (!localStorage.getItem(MIGR_KEY)) {
+                if (!saved.some(u => u.id === 'usr-5')) saved.push(clone(defaultUsers.find(u => u.id === 'usr-5')));
+            }
+            localStorage.setItem(MIGR_KEY, '1');
+            localStorage.setItem(USERS_KEY, JSON.stringify(saved));
+            return saved;
         }
+        function saveUsers() { localStorage.setItem(USERS_KEY, JSON.stringify(usersList)); }
 
         function loadClubData() {
-            const saved = localStorage.getItem(STORAGE_KEY);
-            return saved ? JSON.parse(saved) : {
+            let d = {};
+            try { d = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}') || {}; } catch (e) { d = {}; }
+            const base = {
                 noticias: [], multimedia: [], patrocinadores: [], mensagensContacto: [],
                 sociosCRM: [
-                    { id: "CFC-001", nome: "António Manuel", categoria: "Sócio Efetivo", quotas: "Em dia", telemovel: "+244 923 111 222" },
-                    { id: "CFC-002", nome: "Maria Fernanda", categoria: "Sócio VIP Teca", quotas: "Em dia", telemovel: "+244 924 333 444" }
-                ]
+                    { id: 'CFC-001', nome: 'António Manuel', categoria: 'Sócio Efetivo', quotas: 'Em dia', telemovel: '+244 923 111 222' },
+                    { id: 'CFC-002', nome: 'Maria Fernanda', categoria: 'Sócio VIP Teca', quotas: 'Em dia', telemovel: '+244 924 333 444' }
+                ],
+                vendas: [],
+                catalogo: clone(DEFAULT_CATALOG),
+                bancadas: clone(DEFAULT_STANDS),
+                descontos: clone(DEFAULT_DISCOUNTS),
+                config: {}
             };
+            Object.keys(base).forEach(k => { if (d[k] === undefined || d[k] === null) d[k] = base[k]; });
+            d.config = Object.assign({ bloquearDescontoQuotasPendentes: true, proximoJogo: 'CFC – próximo jogo em casa' }, d.config);
+            return d;
         }
-
-        function saveClubData() {
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(clubData));
+        function saveClubData() { localStorage.setItem(STORAGE_KEY, JSON.stringify(clubData)); }
+        // Recarrega os dados mais recentes (o site público também escreve aqui), aplica a alteração e grava
+        function mutate(fn) {
+            clubData = loadClubData();
+            const r = fn(clubData);
+            saveClubData();
+            refreshChrome();
+            return r;
         }
 
         function logAudit(acao) {
-            const logs = JSON.parse(localStorage.getItem(AUDIT_KEY) || '[]');
-            logs.unshift({
-                data: new Date().toLocaleString('pt-PT'),
-                usuario: currentUser ? currentUser.nome : 'Sistema',
-                acao
-            });
-            localStorage.setItem(AUDIT_KEY, JSON.stringify(logs.slice(0, 50)));
+            let logs = [];
+            try { logs = JSON.parse(localStorage.getItem(AUDIT_KEY) || '[]'); } catch (e) {}
+            logs.unshift({ data: new Date().toLocaleString('pt-PT'), usuario: currentUser ? currentUser.nome : 'Sistema', acao });
+            localStorage.setItem(AUDIT_KEY, JSON.stringify(logs.slice(0, 200)));
         }
 
         let usersList = loadUsers();
         let clubData = loadClubData();
         let currentUser = null;
         let activeTab = '';
+        let forceHelp = false;
 
-        function showBoToast(msg) {
-            const t = document.getElementById('bo-toast');
-            t.innerText = msg;
-            t.classList.remove('hidden');
+        const can = perm => !!currentUser && (currentUser.isAdmin || (!ADMIN_ONLY.includes(perm) && currentUser.permissoes.includes(perm)));
+
+        // ======================================================================
+        // AVISOS (toasts), JANELAS (modais), MENU
+        // ======================================================================
+        function showBoToast(msg, type) {
+            type = type || (/(inválid|sem disponib|selecione|já existe|não há|não pode|indique|demasiado|adicione|erro|entre 0|negado|sem permiss|bloque|incorret|escreva)/i.test(msg) ? 'warn' : 'ok');
+            const t = $('bo-toast');
+            const warn = type === 'warn';
+            t.className = 'fixed bottom-6 left-1/2 -translate-x-1/2 md:left-auto md:right-6 md:translate-x-0 bg-cfcDarkBlue text-white px-5 py-3 rounded-xl shadow-2xl border-l-4 z-[80] text-xs font-bold max-w-sm w-[calc(100%-2rem)] md:w-auto flex items-center gap-2 ' + (warn ? 'border-amber-400' : 'border-cfcAccent');
+            t.innerHTML = `<i class="fas ${warn ? 'fa-exclamation-triangle text-amber-300' : 'fa-check-circle text-cfcAccent'}"></i><span>${esc(msg)}</span>`;
             clearTimeout(window._boToast);
-            window._boToast = setTimeout(() => t.classList.add('hidden'), 3200);
+            window._boToast = setTimeout(() => t.classList.add('hidden'), 3800);
+        }
+
+        // --- Menu retrátil (três barras) ---
+        let menuOpen = false;
+        function setMenu(open, persist) {
+            menuOpen = !!open;
+            const sb = $('sidebar'), ov = $('sidebar-overlay'), bg = $('burger');
+            if (isDesktop()) {
+                sb.classList.remove('-translate-x-full');
+                sb.style.width = menuOpen ? '18rem' : '0px';
+                ov.classList.add('hidden');
+                if (persist) { try { localStorage.setItem(MENU_PREF_KEY, menuOpen ? '1' : '0'); } catch (e) {} }
+            } else {
+                sb.style.width = '';
+                sb.classList.toggle('-translate-x-full', !menuOpen);
+                ov.classList.toggle('hidden', !menuOpen);
+            }
+            bg.setAttribute('aria-expanded', String(menuOpen));
+        }
+        function toggleSidebar() { setMenu(!menuOpen, true); }
+        function closeSidebarMobile() { if (!isDesktop()) setMenu(false); }
+        function applyMenuForViewport() {
+            if (isDesktop()) {
+                let pref = '1';
+                try { pref = localStorage.getItem(MENU_PREF_KEY) || '1'; } catch (e) {}
+                setMenu(pref !== '0');
+            } else setMenu(false);
+        }
+
+        // --- Janelas de confirmação ---
+        let _modalResolve = null, _modalInput = false;
+        function closeModal(val) {
+            const bg = $('modal-bg');
+            if (bg) bg.remove();
+            const r = _modalResolve; _modalResolve = null;
+            if (r) r(val === undefined ? (_modalInput ? null : false) : val);
+        }
+        function modalOk() { closeModal(_modalInput ? $('modal-input').value : true); }
+        function uiModal(o) {
+            if (_modalResolve) closeModal();
+            return new Promise(resolve => {
+                _modalResolve = resolve; _modalInput = !!o.input;
+                $('modal-root').innerHTML = `
+                    <div id="modal-bg" class="fixed inset-0 z-[70] flex items-end sm:items-center justify-center p-4 bg-black/50" onclick="if(event.target===this)closeModal()">
+                        <form onsubmit="event.preventDefault();modalOk()" role="dialog" aria-modal="true" class="bg-white rounded-2xl shadow-2xl w-full ${o.wide ? 'max-w-2xl' : 'max-w-md'} p-6 space-y-4 fade-in max-h-[90vh] overflow-y-auto">
+                            <h3 class="font-display text-xl font-bold uppercase ${o.danger ? 'text-red-600' : 'text-cfcDarkBlue'}">${esc(o.title)}</h3>
+                            <div class="text-sm text-slate-600">${o.body || ''}</div>
+                            ${o.input ? `<input id="modal-input" type="${o.input.type || 'text'}" placeholder="${esc(o.input.placeholder || '')}" class="w-full border border-slate-300 rounded-lg px-3.5 py-2.5 text-sm focus:outline-none focus:border-cfcBlue">` : ''}
+                            <div class="flex justify-end gap-2 pt-1">
+                                ${o.hideCancel ? '' : `<button type="button" id="modal-cancel" onclick="closeModal()" class="px-4 py-2.5 rounded-lg text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-600">${esc(o.cancelText || 'Cancelar')}</button>`}
+                                <button type="submit" id="modal-ok" class="px-5 py-2.5 rounded-lg text-xs font-bold text-white ${o.danger ? 'bg-red-600 hover:bg-red-700' : 'bg-cfcBlue hover:bg-cfcDarkBlue'}">${esc(o.okText || 'Confirmar')}</button>
+                            </div>
+                        </form>
+                    </div>`;
+                setTimeout(() => { const f = $('modal-input') || $('modal-ok'); if (f) f.focus(); }, 30);
+            });
+        }
+        const uiConfirm = (title, msg, opt = {}) => uiModal({ title, body: esc(msg), danger: opt.danger, okText: opt.okText || 'Confirmar' });
+        const uiPrompt = (title, msg, opt = {}) => uiModal({ title, body: esc(msg), input: { type: opt.type, placeholder: opt.placeholder }, okText: opt.okText || 'Guardar' });
+
+        // ======================================================================
+        // AVISOS INTELIGENTES (sino) E NAVEGAÇÃO
+        // ======================================================================
+        function computeAlerts() {
+            const d = loadClubData();
+            const a = [];
+            if (can('contactos')) {
+                const n = d.mensagensContacto.filter(m => m.estado !== 'Respondida').length;
+                if (n) a.push({ tab: 'contactos', n, icon: 'fa-envelope', text: `${n} mensagem(ns) do site por responder` });
+            }
+            if (can('socios')) {
+                const n = d.sociosCRM.filter(s => s.quotas !== 'Em dia').length;
+                if (n) a.push({ tab: 'socios', n, icon: 'fa-id-card', text: `${n} sócio(s) com quotas pendentes` });
+            }
+            if (can('loja')) {
+                const low = d.catalogo.filter(p => !p.bancada && Number(p.stock) <= 10);
+                if (low.length) a.push({ tab: 'loja', n: low.length, icon: 'fa-box-open', text: 'Stock a acabar: ' + low.map(p => `${p.nome} (${Math.max(0, Number(p.stock) || 0)})`).join(', ') });
+            }
+            if (can('bilheteria')) {
+                const full = Object.values(d.bancadas).filter(b => b.cap > 0 && b.vendidos / b.cap >= 0.9);
+                if (full.length) a.push({ tab: 'bilheteria', n: full.length, icon: 'fa-ticket-alt', text: full.map(b => `${b.nome} com ${Math.round(b.vendidos / b.cap * 100)}% da lotação`).join(' • ') });
+            }
+            return a;
+        }
+
+        function refreshChrome() {
+            if (!currentUser || !$('topbar-title')) return;
+            const m = ALL_PERMISSIONS.find(p => p.id === activeTab);
+            if (m) $('topbar-title').textContent = m.label;
+            $('topbar-date').textContent = new Date().toLocaleDateString('pt-PT', { weekday: 'long', day: 'numeric', month: 'long' });
+            const al = computeAlerts();
+            const b = $('bell-badge');
+            b.textContent = al.length; b.classList.toggle('hidden', !al.length);
+            ALL_PERMISSIONS.forEach(p => {
+                const el = $('nav-badge-' + p.id);
+                if (!el) return;
+                const n = al.filter(x => x.tab === p.id).reduce((s, x) => s + x.n, 0);
+                el.textContent = n; el.classList.toggle('hidden', !n);
+            });
+        }
+
+        function openAlerts() {
+            const al = computeAlerts();
+            uiModal({
+                title: 'Avisos', hideCancel: true, okText: 'Fechar',
+                body: al.length ? `<div class="space-y-2">${al.map(x => `
+                    <button type="button" onclick="closeModal();selectBoTab('${x.tab}')" class="w-full text-left flex items-center gap-3 p-3 rounded-xl border border-amber-200 bg-amber-50 hover:bg-amber-100 transition">
+                        <i class="fas ${x.icon} text-amber-600 w-5 text-center"></i><span class="flex-1 text-xs font-semibold text-slate-700">${esc(x.text)}</span><i class="fas fa-chevron-right text-amber-400 text-xs"></i>
+                    </button>`).join('')}</div>`
+                    : '<div class="text-center py-6"><i class="fas fa-check-circle text-4xl text-green-500 mb-2"></i><p class="font-semibold">Tudo em ordem! Não há nada pendente.</p></div>'
+            });
+        }
+
+        function goTo(tab, focusId) {
+            selectBoTab(tab);
+            if (focusId) setTimeout(() => { const e = $(focusId); if (e) e.focus(); }, 80);
+        }
+
+        // --- Ajuda em cada área ---
+        const helpKey = tab => `cfc_bo_help_${currentUser.id}_${tab}`;
+        function helpHTML(tab) {
+            const h = HELP[tab];
+            if (!h) return '';
+            try { if (localStorage.getItem(helpKey(tab)) === '1' && !forceHelp) return ''; } catch (e) {}
+            return `
+                <div id="help-box" class="bg-cfcLightBlue border border-blue-200 rounded-2xl p-4 text-xs relative fade-in">
+                    <button onclick="dismissHelp()" aria-label="Fechar ajuda" class="absolute top-2.5 right-3 text-slate-400 hover:text-slate-700"><i class="fas fa-times"></i></button>
+                    <p class="font-bold text-cfcDarkBlue mb-2 pr-6"><i class="fas fa-lightbulb text-amber-500 mr-1.5"></i> Como usar ${h.t}</p>
+                    <ul class="space-y-1 text-slate-700">${h.s.map(x => `<li><i class="fas fa-angle-right text-cfcBlue mr-1.5"></i>${esc(x)}</li>`).join('')}</ul>
+                    <button onclick="runTour(true)" class="mt-2 text-cfcBlue font-bold hover:underline">Ver visita guiada</button>
+                </div>`;
+        }
+        function dismissHelp() {
+            try { localStorage.setItem(helpKey(activeTab), '1'); } catch (e) {}
+            const el = $('help-box'); if (el) el.remove();
+        }
+        function showHelp() {
+            try { localStorage.removeItem(helpKey(activeTab)); } catch (e) {}
+            forceHelp = true; selectBoTab(activeTab); forceHelp = false;
+        }
+
+        // --- Visita guiada (primeiro acesso) ---
+        async function runTour(force) {
+            const key = 'cfc_bo_tour_' + currentUser.id;
+            try { if (!force && localStorage.getItem(key) === '1') return; } catch (e) {}
+            for (let i = 0; i < TOUR.length; i++) {
+                const s = TOUR[i];
+                const go = await uiModal({
+                    title: i === 0 ? 'Bem-vindo(a)!' : s.title,
+                    okText: i === TOUR.length - 1 ? 'Começar' : 'Seguinte', cancelText: 'Saltar',
+                    body: `<div class="text-center space-y-3 py-2">
+                        <div class="w-16 h-16 mx-auto rounded-2xl bg-cfcBlue text-white flex items-center justify-center text-2xl"><i class="fas ${s.icon}"></i></div>
+                        <p class="font-bold text-cfcDarkBlue">${esc(s.title)}</p>
+                        <p>${esc(s.text)}</p>
+                        <p class="text-[11px] text-slate-400">Passo ${i + 1} de ${TOUR.length}</p></div>`
+                });
+                if (!go) break;
+            }
+            try { localStorage.setItem(key, '1'); } catch (e) {}
+        }
+
+        // --- Pesquisa inteligente (Ctrl+K ou lupa) ---
+        let pal = { items: [], idx: 0 };
+        function openPalette() {
+            if (!currentUser || $('palette-bg')) return;
+            $('palette-root').innerHTML = `
+                <div id="palette-bg" class="fixed inset-0 z-[65] bg-black/50 flex items-start justify-center p-4 pt-[8vh]" onclick="if(event.target===this)closePalette()">
+                    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden fade-in">
+                        <div class="flex items-center gap-3 px-4 border-b">
+                            <i class="fas fa-search text-slate-400"></i>
+                            <input id="palette-input" autocomplete="off" placeholder="Procurar sócio, venda ou o que quer fazer..." class="flex-1 py-4 text-sm outline-none">
+                            <button onclick="closePalette()" class="text-slate-400 hover:text-slate-700 text-xs font-bold">Esc</button>
+                        </div>
+                        <div id="palette-list" class="max-h-[50vh] overflow-y-auto py-2"></div>
+                        <p class="px-4 py-2 text-[11px] text-slate-400 border-t hidden sm:block">↑ ↓ para escolher • Enter para abrir</p>
+                    </div>
+                </div>`;
+            const inp = $('palette-input');
+            inp.addEventListener('input', () => { pal.idx = 0; renderPalette(inp.value); });
+            inp.addEventListener('keydown', paletteKey);
+            pal.idx = 0; renderPalette('');
+            inp.focus();
+        }
+        function closePalette() { const bg = $('palette-bg'); if (bg) bg.remove(); }
+
+        function paletteItems(q) {
+            const t = q.trim().toLowerCase();
+            const d = loadClubData();
+            const out = [];
+            if (t.length >= 2) {
+                if (can('socios')) {
+                    d.sociosCRM.filter(s => (s.nome + ' ' + s.id + ' ' + s.telemovel).toLowerCase().includes(t)).slice(0, 5).forEach(s =>
+                        out.push({ group: 'Sócios', icon: 'fa-id-card', label: `${s.nome} (${s.id})`, hint: `${s.categoria} • quotas ${s.quotas.toLowerCase()}`, run: () => { goTo('socios'); $('soc-f-q').value = s.id; socFilter(); } }));
+                }
+                if (can('financas') || can('loja')) {
+                    d.vendas.filter(v => (v.id + ' ' + v.cliente + ' ' + v.socioId).toLowerCase().includes(t)).slice(0, 5).forEach(v =>
+                        out.push({ group: 'Vendas', icon: 'fa-receipt', label: `${v.id} — ${v.cliente}`, hint: `${fmtDate(v.data)} • ${kz(v.total)}`, run: () => { if (can('financas')) { goTo('financas'); $('fin-q').value = v.id; finApply(); } else goTo('loja'); } }));
+                }
+            }
+            const acts = [
+                { perm: 'loja', icon: 'fa-cash-register', label: 'Fazer uma nova venda', kw: 'vender venda loja bilhete camisola bone casaco', run: () => goTo('loja') },
+                { perm: 'socios', icon: 'fa-user-plus', label: 'Registar um novo sócio', kw: 'novo socio registar adicionar associado', run: () => goTo('socios', 'soc-nome') },
+                { perm: 'financas', icon: 'fa-file-excel', label: 'Exportar vendas para Excel', kw: 'excel exportar vendas financas relatorio contabilidade', run: () => { goTo('financas'); finExport(); } },
+                { perm: 'gestao', icon: 'fa-newspaper', label: 'Publicar uma notícia', kw: 'noticia publicar escrever', run: () => goTo('gestao', 'news-title') },
+                { perm: 'contactos', icon: 'fa-envelope', label: 'Ver mensagens por responder', kw: 'mensagens responder contacto email', run: () => goTo('contactos') },
+                { perm: 'definicoes', icon: 'fa-download', label: 'Fazer cópia de segurança', kw: 'backup copia seguranca guardar dados', run: () => { goTo('definicoes'); backupDownload(); } }
+            ].filter(a => can(a.perm)).map(a => ({ group: 'Ações rápidas', hint: 'Fazer', ...a }));
+            const areas = ALL_PERMISSIONS.filter(p => can(p.id)).map(p => ({ group: 'Áreas', icon: p.icon, label: p.label, kw: p.id, hint: 'Abrir', run: () => goTo(p.id) }));
+            const rest = [...acts, ...areas].filter(i => !t || (i.label + ' ' + (i.kw || '')).toLowerCase().includes(t));
+            return [...out, ...rest].slice(0, 14);
+        }
+        function renderPalette(q) {
+            pal.items = paletteItems(q);
+            if (!pal.items.length) { $('palette-list').innerHTML = '<p class="px-4 py-8 text-center text-xs text-slate-400">Nada encontrado. Tente outra palavra.</p>'; return; }
+            let last = '';
+            $('palette-list').innerHTML = pal.items.map((it, i) => {
+                const head = it.group !== last ? `<p class="px-4 pt-2 pb-1 text-[10px] font-bold uppercase text-slate-400">${esc(it.group)}</p>` : '';
+                last = it.group;
+                return head + `<button type="button" data-i="${i}" onclick="runPalette(${i})" onmousemove="pal.idx=${i};highlightPalette()" class="pal-item w-full text-left flex items-center gap-3 px-4 py-2.5 text-xs">
+                    <span class="w-8 h-8 rounded-lg bg-cfcLightBlue text-cfcBlue flex items-center justify-center flex-shrink-0"><i class="fas ${it.icon}"></i></span>
+                    <span class="flex-1 min-w-0"><span class="block font-semibold text-slate-800 truncate">${esc(it.label)}</span>${it.hint && it.group !== 'Áreas' ? `<span class="block text-[11px] text-slate-400 truncate">${esc(it.hint)}</span>` : ''}</span>
+                    <i class="fas fa-chevron-right text-slate-300 text-[10px]"></i></button>`;
+            }).join('');
+            highlightPalette();
+        }
+        function highlightPalette() {
+            document.querySelectorAll('.pal-item').forEach(b => {
+                const on = Number(b.dataset.i) === pal.idx;
+                b.classList.toggle('bg-cfcLightBlue', on);
+                if (on && b.scrollIntoView) b.scrollIntoView({ block: 'nearest' });
+            });
+        }
+        function paletteKey(e) {
+            const n = pal.items.length;
+            if (e.key === 'ArrowDown') { e.preventDefault(); if (n) { pal.idx = (pal.idx + 1) % n; highlightPalette(); } }
+            else if (e.key === 'ArrowUp') { e.preventDefault(); if (n) { pal.idx = (pal.idx - 1 + n) % n; highlightPalette(); } }
+            else if (e.key === 'Enter') { e.preventDefault(); runPalette(pal.idx); }
+        }
+        function runPalette(i) {
+            const it = pal.items[i];
+            if (!it) return;
+            closePalette();
+            it.run();
+        }
+
+        // ======================================================================
+        // EXPORTAÇÃO (EXCEL .xlsx com fallback para CSV)
+        // ======================================================================
+        function saveWorkbook(filename, sheets) {
+            if (window.XLSX) {
+                const wb = XLSX.utils.book_new();
+                sheets.forEach(sh => {
+                    const ws = XLSX.utils.aoa_to_sheet(sh.aoa);
+                    if (sh.widths) ws['!cols'] = sh.widths.map(w => ({ wch: w }));
+                    (sh.money || []).forEach(c => {
+                        for (let r = 1; r < sh.aoa.length; r++) {
+                            const ref = XLSX.utils.encode_cell({ r, c });
+                            if (ws[ref] && ws[ref].t === 'n') ws[ref].z = '#,##0';
+                        }
+                    });
+                    if (sh.post) sh.post(ws);
+                    XLSX.utils.book_append_sheet(wb, ws, sh.name.slice(0, 31));
+                });
+                XLSX.writeFile(wb, filename + '.xlsx');
+                return 'xlsx';
+            }
+            const aoa = sheets[0].aoa;
+            const csv = '﻿' + aoa.map(r => r.map(v => `"${String(v == null ? '' : v).replace(/"/g, '""')}"`).join(';')).join('\r\n');
+            downloadBlob(filename + '.csv', new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+            return 'csv';
+        }
+
+        // ======================================================================
+        // LÓGICA DE VENDAS
+        // ======================================================================
+        function disponivel(d, p) {
+            if (p.bancada) { const b = d.bancadas[p.bancada]; return b ? Math.max(0, b.cap - b.vendidos) : 0; }
+            return Math.max(0, Number(p.stock) || 0);
+        }
+
+        function priceCart(d, tipo, socioId, cart) {
+            const socio = tipo === 'socio' ? d.sociosCRM.find(s => s.id === socioId) : null;
+            let pct = 0, motivo = '';
+            if (socio) {
+                if (d.config.bloquearDescontoQuotasPendentes && socio.quotas !== 'Em dia') motivo = 'Quotas pendentes';
+                else pct = Number(d.descontos[socio.categoria]) || 0;
+            }
+            const erros = [], lines = [];
+            cart.forEach(c => {
+                const prod = d.catalogo.find(p => p.id === c.id);
+                if (!prod) return;
+                const disp = disponivel(d, prod);
+                if (c.qtd > disp) erros.push(`Sem disponibilidade de "${prod.nome}" (restam ${disp}).`);
+                const bruto = prod.preco * c.qtd;
+                const desc = Math.round(bruto * pct / 100);
+                lines.push({ prod, qtd: c.qtd, bruto, desc, total: bruto - desc });
+            });
+            const bruto = lines.reduce((s, l) => s + l.bruto, 0);
+            const desconto = lines.reduce((s, l) => s + l.desc, 0);
+            return { socio, pct, motivo, lines, erros, bruto, desconto, total: bruto - desconto };
+        }
+
+        function applySale(d, meta) {
+            const pr = priceCart(d, meta.tipo, meta.socioId, meta.cart);
+            if (!pr.lines.length) throw new Error('Adicione pelo menos um artigo.');
+            if (meta.tipo === 'socio' && !pr.socio) throw new Error('Selecione um sócio válido.');
+            if (pr.erros.length) throw new Error(pr.erros[0]);
+            pr.lines.forEach(l => {
+                if (l.prod.bancada) d.bancadas[l.prod.bancada].vendidos += l.qtd;
+                else d.catalogo.find(x => x.id === l.prod.id).stock -= l.qtd;
+            });
+            const n = d.vendas.reduce((m, v) => Math.max(m, parseInt(String(v.id).replace(/\D/g, ''), 10) || 0), 0) + 1;
+            const sale = {
+                id: 'VND-' + pad(n, 5),
+                data: todayISO(), hora: nowHM(),
+                tipoCliente: meta.tipo === 'socio' ? 'Sócio' : 'Não sócio',
+                socioId: pr.socio ? pr.socio.id : '',
+                cliente: pr.socio ? pr.socio.nome : (meta.nome || 'Cliente de balcão'),
+                telefone: pr.socio ? pr.socio.telemovel : (meta.tel || ''),
+                categoriaSocio: pr.socio ? pr.socio.categoria : '',
+                quotasSocio: pr.socio ? pr.socio.quotas : '',
+                descontoPct: pr.pct,
+                motivoSemDesconto: pr.motivo,
+                itens: pr.lines.map(l => ({
+                    produtoId: l.prod.id, produto: l.prod.nome, categoria: l.prod.cat, qtd: l.qtd,
+                    precoUnit: l.prod.preco, descontoPct: pr.pct, bruto: l.bruto, desconto: l.desc, total: l.total,
+                    jogo: l.prod.bancada ? d.config.proximoJogo : ''
+                })),
+                bruto: pr.bruto, desconto: pr.desconto, total: pr.total,
+                pagamento: meta.pag, vendedor: currentUser ? currentUser.nome : '',
+                estado: 'Concluída', origem: 'Back-office'
+            };
+            d.vendas.unshift(sale);
+            return sale;
+        }
+
+        function tipoLabel(v) {
+            if (v.tipoCliente === 'Sócio') return v.descontoPct > 0 ? 'Sócio (com desconto)' : 'Sócio (sem desconto' + (v.motivoSemDesconto ? ' – ' + v.motivoSemDesconto.toLowerCase() : '') + ')';
+            return 'Não sócio (preço normal)';
+        }
+        function tipoBadge(v) {
+            if (v.tipoCliente === 'Sócio') {
+                return v.descontoPct > 0
+                    ? `<span class="px-2 py-0.5 rounded font-bold bg-green-100 text-green-700 whitespace-nowrap">Sócio · -${v.descontoPct}%</span>`
+                    : `<span class="px-2 py-0.5 rounded font-bold bg-amber-100 text-amber-700 whitespace-nowrap">Sócio · sem desconto</span>`;
+            }
+            return `<span class="px-2 py-0.5 rounded font-bold bg-slate-200 text-slate-700 whitespace-nowrap">Não sócio</span>`;
+        }
+
+        function exportVendas(vendas, filename, periodo) {
+            if (!vendas.length) return showBoToast('Não há vendas para exportar.');
+            const ok = vendas.filter(v => v.estado !== 'Anulada');
+            const anul = vendas.filter(v => v.estado === 'Anulada');
+            const HEAD = ['Nº Venda', 'Data', 'Hora', 'Tipo de Cliente', 'Nº Sócio', 'Cliente', 'Categoria Sócio', 'Produto', 'Categoria Produto', 'Qtd', 'Preço Unit. (Kz)', 'Desconto (%)', 'Valor Bruto (Kz)', 'Desconto (Kz)', 'Total Pago (Kz)', 'Pagamento', 'Vendedor', 'Origem'];
+            const rowsOf = list => {
+                const rows = [];
+                list.forEach(v => v.itens.forEach(it => rows.push([
+                    v.id, fmtDate(v.data), v.hora, tipoLabel(v), v.socioId || '—', v.cliente, v.categoriaSocio || '—',
+                    it.produto, it.categoria, it.qtd, it.precoUnit, it.descontoPct, it.bruto, it.desconto, it.total,
+                    v.pagamento, v.vendedor, v.origem || 'Back-office'
+                ])));
+                return rows;
+            };
+            const detalhe = rowsOf(ok);
+            const n = detalhe.length;
+            const sum = col => detalhe.reduce((s, r) => s + (Number(r[col]) || 0), 0);
+            const detalheAoa = [HEAD, ...detalhe, ['TOTAL', '', '', '', '', '', '', '', '', sum(9), '', '', sum(12), sum(13), sum(14), '', '', '']];
+            const widths = [11, 11, 7, 34, 10, 24, 20, 30, 16, 6, 14, 12, 16, 14, 16, 18, 22, 12];
+
+            const grp = (list, keyFn) => { const m = {}; list.forEach(v => { const k = keyFn(v); m[k] = m[k] || { n: 0, bruto: 0, desc: 0, tot: 0 }; m[k].n++; m[k].bruto += v.bruto; m[k].desc += v.desconto; m[k].tot += v.total; }); return m; };
+            const porTipo = grp(ok, tipoLabel);
+            const porPag = grp(ok, v => v.pagamento);
+            const porCat = {};
+            ok.forEach(v => v.itens.forEach(it => { const c = porCat[it.categoria] = porCat[it.categoria] || { qtd: 0, bruto: 0, desc: 0, tot: 0 }; c.qtd += it.qtd; c.bruto += it.bruto; c.desc += it.desconto; c.tot += it.total; }));
+            const tot = { n: ok.length, bruto: ok.reduce((s, v) => s + v.bruto, 0), desc: ok.reduce((s, v) => s + v.desconto, 0), tot: ok.reduce((s, v) => s + v.total, 0) };
+            const resumo = [
+                ['Carlos Futebol Clube – Relatório de Vendas da Loja'],
+                ['Período', periodo || 'Todas as vendas'],
+                ['Gerado em', new Date().toLocaleString('pt-PT')],
+                ['Gerado por', currentUser ? currentUser.nome : ''],
+                ['Vendas anuladas (não incluídas)', anul.length],
+                [],
+                ['POR TIPO DE CLIENTE', 'Nº Vendas', 'Valor Bruto (Kz)', 'Desconto (Kz)', 'Total Líquido (Kz)'],
+                ...Object.keys(porTipo).map(k => [k, porTipo[k].n, porTipo[k].bruto, porTipo[k].desc, porTipo[k].tot]),
+                ['TOTAL', tot.n, tot.bruto, tot.desc, tot.tot],
+                [],
+                ['POR CATEGORIA DE PRODUTO', 'Quantidade', 'Valor Bruto (Kz)', 'Desconto (Kz)', 'Total Líquido (Kz)'],
+                ...Object.keys(porCat).map(k => [k, porCat[k].qtd, porCat[k].bruto, porCat[k].desc, porCat[k].tot]),
+                [],
+                ['POR MÉTODO DE PAGAMENTO', 'Nº Vendas', 'Valor Bruto (Kz)', 'Desconto (Kz)', 'Total Líquido (Kz)'],
+                ...Object.keys(porPag).map(k => [k, porPag[k].n, porPag[k].bruto, porPag[k].desc, porPag[k].tot])
+            ];
+            const sheets = [
+                {
+                    name: 'Vendas', aoa: detalheAoa, widths, money: [10, 12, 13, 14],
+                    post: ws => {
+                        if (!window.XLSX) return;
+                        ws['!autofilter'] = { ref: `A1:R${n + 1}` };
+                        [[9, 'J'], [12, 'M'], [13, 'N'], [14, 'O']].forEach(([c, L]) => {
+                            const ref = XLSX.utils.encode_cell({ r: n + 1, c });
+                            ws[ref] = { t: 'n', v: sum(c), f: n ? `SUBTOTAL(109,${L}2:${L}${n + 1})` : undefined, z: '#,##0' };
+                        });
+                    }
+                },
+                { name: 'Resumo', aoa: resumo, widths: [38, 14, 18, 16, 18], money: [2, 3, 4] }
+            ];
+            if (anul.length) sheets.push({ name: 'Anuladas', aoa: [HEAD, ...rowsOf(anul)], widths, money: [10, 12, 13, 14] });
+            const fmt = saveWorkbook(filename, sheets);
+            logAudit(`Exportou ${ok.length} venda(s) para ${fmt.toUpperCase()}: ${filename}`);
+            showBoToast(fmt === 'xlsx' ? 'Ficheiro Excel gerado!' : 'Biblioteca Excel indisponível: gerado CSV (abre no Excel).');
+        }
+
+        // Recibo imprimível
+        function printRecibo(id) {
+            const v = findVenda(id);
+            if (!v) return;
+            const w = window.open('', '_blank', 'width=420,height=680');
+            if (!w) return showBoToast('O navegador bloqueou a janela. Permita pop-ups para imprimir.', 'warn');
+            w.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Recibo ${esc(v.id)}</title>
+                <style>body{font-family:Arial,sans-serif;font-size:12px;max-width:320px;margin:0 auto;padding:14px;color:#111}h1{font-size:16px;text-align:center;margin:0}
+                p{margin:2px 0}.c{text-align:center}hr{border:0;border-top:1px dashed #999;margin:8px 0}table{width:100%;border-collapse:collapse}td{padding:2px 0;vertical-align:top}.r{text-align:right}.t{font-size:15px;font-weight:bold}</style></head><body>
+                <h1>CARLOS FUTEBOL CLUBE</h1><p class="c">Recibo de venda ${esc(v.id)}</p><p class="c">${fmtDate(v.data)} ${esc(v.hora)}</p><hr>
+                <p>Cliente: <b>${esc(v.cliente)}</b>${v.socioId ? ' (' + esc(v.socioId) + ')' : ''}</p><p>${esc(tipoLabel(v))}</p><hr>
+                <table>${v.itens.map(i => `<tr><td>${i.qtd}× ${esc(i.produto)}</td><td class="r">${kz(i.total)}</td></tr>`).join('')}</table><hr>
+                <table><tr><td>Subtotal</td><td class="r">${kz(v.bruto)}</td></tr><tr><td>Desconto${v.descontoPct ? ' (' + v.descontoPct + '%)' : ''}</td><td class="r">- ${kz(v.desconto)}</td></tr>
+                <tr class="t"><td>TOTAL</td><td class="r">${kz(v.total)}</td></tr></table>
+                <p>Pagamento: ${esc(v.pagamento)}</p><p>Atendido por: ${esc(v.vendedor)}</p><hr><p class="c">Obrigado pelo seu apoio!</p>
+                <script>window.onload=function(){window.print()}<\/script></body></html>`);
+            w.document.close();
+        }
+
+        // ======================================================================
+        // LOGIN
+        // ======================================================================
+        function showAuthMsg(text, type) {
+            const el = $('auth-msg');
+            el.className = 'mb-4 p-3 rounded-lg text-xs font-semibold ' + (type === 'info' ? 'bg-blue-50 text-blue-700 border border-blue-200' : 'bg-red-50 text-red-700 border border-red-200');
+            el.textContent = text;
+            if (type !== 'info') { const c = $('auth-card'); c.classList.remove('shake'); void c.offsetWidth; c.classList.add('shake'); }
+        }
+        function togglePass() {
+            const i = $('bo-login-pass'), e = $('pass-eye');
+            const show = i.type === 'password';
+            i.type = show ? 'text' : 'password';
+            e.className = 'fas ' + (show ? 'fa-eye-slash' : 'fa-eye');
         }
 
         function renderQuickLogins() {
-            const box = document.getElementById('quick-login-users');
+            const box = $('quick-login-users');
             if (!box) return;
             box.innerHTML = usersList.filter(u => u.ativo).map(u => `
-                <button type="button" onclick="quickLogin('${u.email}')" class="text-left p-2.5 rounded-lg border border-slate-200 hover:border-cfcBlue hover:bg-cfcLightBlue/40 transition">
-                    <span class="block font-bold text-cfcDarkBlue truncate">${u.nome}</span>
-                    <span class="text-[10px] text-slate-500">${u.isAdmin ? 'Acesso Total (Admin)' : 'Acesso: ' + u.permissoes.join(', ')}</span>
+                <button type="button" onclick="quickLogin('${esc(u.id)}')" class="text-left p-2.5 rounded-lg border border-slate-200 hover:border-cfcBlue hover:bg-cfcLightBlue/40 transition">
+                    <span class="block font-bold text-cfcDarkBlue truncate">${esc(u.nome)}</span>
+                    <span class="text-[10px] text-slate-500">${u.isAdmin ? 'Acesso Total (Admin)' : 'Acesso: ' + esc(u.permissoes.join(', '))}</span>
                 </button>
             `).join('');
         }
 
-        function quickLogin(email) {
-            const user = usersList.find(u => u.email === email && u.ativo);
-            if (!user) return;
+        function quickLogin(id) {
+            const user = usersList.find(u => u.id === id && u.ativo);
+            if (!user || !DEMO_MODE) return;
             currentUser = user;
             enterDashboard();
         }
 
         function handleBackofficeLogin(e) {
             e.preventDefault();
-            const email = document.getElementById('bo-login-user').value.trim().toLowerCase();
-            const pass = document.getElementById('bo-login-pass').value;
+            const email = $('bo-login-user').value.trim().toLowerCase();
+            const pass = $('bo-login-pass').value;
             const user = usersList.find(u => u.email.toLowerCase() === email && u.senha === pass);
-            if (!user) return alert("Credenciais inválidas.");
-            if (!user.ativo) return alert("Esta conta de utilizador está desativada pelo Administrador.");
+            if (!user) return showAuthMsg('E-mail ou palavra-passe incorretos. Confira e tente de novo.');
+            if (!user.ativo) return showAuthMsg('Esta conta está desativada. Fale com o Administrador.');
             currentUser = user;
             enterDashboard();
         }
 
-        function enterDashboard() {
-            logAudit('Iniciou sessão no Back-Office');
-            document.getElementById('auth-screen').classList.add('hidden');
-            document.getElementById('dashboard-screen').classList.remove('hidden');
+        function initials(nome) {
+            const p = String(nome).replace(/\(.*?\)/g, '').replace(/^(Dr\.|Dra\.|Eng\.)\s*/i, '').trim().split(/\s+/);
+            return ((p[0] || '')[0] || '') + ((p.length > 1 ? p[p.length - 1] : '')[0] || '');
+        }
+        function firstName(nome) { return String(nome).replace(/\(.*?\)/g, '').replace(/^(Dr\.|Dra\.|Eng\.)\s*/i, '').trim().split(/\s+/)[0] || ''; }
 
-            document.getElementById('logged-user-card').innerHTML = `
-                <p class="font-bold text-white">${currentUser.nome}</p>
-                <p class="text-blue-300 text-[11px]">${currentUser.cargo}</p>
-                <span class="inline-block mt-1.5 px-2 py-0.5 rounded text-[10px] font-bold ${currentUser.isAdmin ? 'bg-cfcAccent text-white' : 'bg-blue-800 text-blue-200'}">
-                    ${currentUser.isAdmin ? 'ADMINISTRADOR TOTAL' : currentUser.permissoes.length + ' módulo(s) autorizado(s)'}
-                </span>
-            `;
+        function enterDashboard(restored) {
+            try { sessionStorage.setItem(SESSION_KEY, currentUser.id); } catch (e) {}
+            if (!restored) logAudit('Iniciou sessão no Back-Office');
+            $('auth-screen').classList.add('hidden');
+            $('auth-msg').className = 'hidden';
+            const ds = $('dashboard-screen');
+            ds.classList.remove('hidden'); ds.classList.add('flex');
 
-            const allowedModules = ALL_PERMISSIONS.filter(p => currentUser.isAdmin || currentUser.permissoes.includes(p.id));
-            const nav = document.getElementById('bo-nav-menu');
-            nav.innerHTML = allowedModules.map(m => `
-                <button onclick="selectBoTab('${m.id}')" id="bo-tab-${m.id}" class="bo-tab-btn w-full flex items-center px-3.5 py-2.5 rounded-lg hover:bg-blue-900 transition text-left">
-                    <i class="fas ${m.icon} w-5 text-cfcAccent"></i> <span>${m.label}</span>
+            $('logged-user-card').innerHTML = `
+                <div class="w-10 h-10 rounded-full bg-cfcAccent text-white flex items-center justify-center font-bold uppercase flex-shrink-0">${esc(initials(currentUser.nome))}</div>
+                <div class="min-w-0">
+                    <p class="font-bold text-white truncate">${esc(currentUser.nome)}</p>
+                    <p class="text-blue-300 text-[11px] truncate">${esc(currentUser.cargo)}</p>
+                    <span class="inline-block mt-1 px-2 py-0.5 rounded text-[10px] font-bold ${currentUser.isAdmin ? 'bg-cfcAccent text-white' : 'bg-blue-800 text-blue-200'}">${currentUser.isAdmin ? 'ADMINISTRADOR' : currentUser.permissoes.length + ' área(s)'}</span>
+                </div>`;
+
+            const allowed = ALL_PERMISSIONS.filter(p => can(p.id));
+            $('bo-nav-menu').innerHTML = allowed.map(m => `
+                <button onclick="selectBoTab('${m.id}'); closeSidebarMobile();" id="bo-tab-${m.id}" class="bo-tab-btn w-full flex items-center px-3.5 py-3 rounded-lg hover:bg-blue-900 transition text-left">
+                    <i class="fas ${m.icon} w-5 text-cfcAccent"></i><span class="flex-1 ml-1">${m.label}</span>
+                    <span id="nav-badge-${m.id}" class="hidden min-w-[20px] text-center bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">0</span>
                 </button>
             `).join('');
 
-            if (allowedModules.length > 0) {
-                selectBoTab(allowedModules[0].id);
-            } else {
-                document.getElementById('bo-content').innerHTML = `<div class="bg-white p-8 rounded-2xl shadow text-center text-sm">Este utilizador não tem módulos atribuídos. Contacte o Administrador.</div>`;
-            }
+            applyMenuForViewport();
+            activeTab = '';
+            let first = allowed.length ? allowed[0].id : '';
+            if (restored) { try { const t = sessionStorage.getItem(TAB_KEY); if (t && can(t)) first = t; } catch (e) {} }
+            if (first) selectBoTab(first);
+            else $('bo-content').innerHTML = `<div class="bg-white p-8 rounded-2xl shadow text-center text-sm">Este utilizador não tem áreas atribuídas. Contacte o Administrador.</div>`;
+            lastAct = Date.now();
+            if (!restored) setTimeout(() => runTour(false), 500);
         }
 
-        function logoutBackoffice() {
-            logAudit('Terminou sessão no Back-Office');
-            currentUser = null;
-            document.getElementById('dashboard-screen').classList.add('hidden');
-            document.getElementById('auth-screen').classList.remove('hidden');
+        function logoutBackoffice(msg) {
+            if (currentUser) logAudit('Terminou sessão no Back-Office');
+            currentUser = null; activeTab = '';
+            try { sessionStorage.removeItem(SESSION_KEY); sessionStorage.removeItem(TAB_KEY); } catch (e) {}
+            closeModal(); closePalette();
+            const ds = $('dashboard-screen');
+            ds.classList.add('hidden'); ds.classList.remove('flex');
+            $('auth-screen').classList.remove('hidden');
+            if (typeof msg === 'string') showAuthMsg(msg, 'info'); else $('auth-msg').className = 'hidden';
             renderQuickLogins();
         }
 
         function selectBoTab(tabId) {
-            if (!currentUser.isAdmin && !currentUser.permissoes.includes(tabId)) {
-                return alert("Acesso negado: o seu perfil não tem permissão para este módulo.");
-            }
+            if (!can(tabId)) { showBoToast('Acesso negado: o seu perfil não tem permissão para esta área.'); return; }
+            const changed = activeTab !== tabId;
             activeTab = tabId;
+            try { sessionStorage.setItem(TAB_KEY, tabId); } catch (e) {}
             clubData = loadClubData();
             document.querySelectorAll('.bo-tab-btn').forEach(b => b.classList.remove('bg-cfcBlue', 'text-white'));
-            const btn = document.getElementById('bo-tab-' + tabId);
+            const btn = $('bo-tab-' + tabId);
             if (btn) btn.classList.add('bg-cfcBlue', 'text-white');
 
-            const box = document.getElementById('bo-content');
-            if (tabId === 'dashboard') renderBoDashboard(box);
-            else if (tabId === 'socios') renderBoSocios(box);
-            else if (tabId === 'financas') renderBoFinancas(box);
-            else if (tabId === 'gestao') renderBoGestao(box);
-            else if (tabId === 'bilheteria') renderBoBilheteria(box);
-            else if (tabId === 'multimedia') renderBoMultimedia(box);
-            else if (tabId === 'patrocinadores') renderBoPatrocinadores(box);
-            else if (tabId === 'contactos') renderBoContactos(box);
-            else if (tabId === 'usuarios') renderBoUsuarios(box);
+            const box = $('bo-content');
+            const map = {
+                dashboard: renderBoDashboard, socios: renderBoSocios, loja: renderBoLoja, financas: renderBoFinancas,
+                gestao: renderBoGestao, bilheteria: renderBoBilheteria, multimedia: renderBoMultimedia,
+                patrocinadores: renderBoPatrocinadores, contactos: renderBoContactos, usuarios: renderBoUsuarios, definicoes: renderBoDefinicoes
+            };
+            if (map[tabId]) map[tabId](box);
+            if (changed || forceHelp) box.insertAdjacentHTML('afterbegin', helpHTML(tabId));
+            refreshChrome();
+            if (changed) $('main-scroll').scrollTop = 0;
         }
 
-        // ==========================================
-        // 1. VISÃO GERAL & AUDITORIA
-        // ==========================================
+        // ======================================================================
+        // TABELA DE VENDAS (partilhada entre Loja, Finanças e Sócios)
+        // ======================================================================
+        function salesTableHTML(vendas, emptyMsg) {
+            if (!vendas.length) return `<p class="p-8 text-xs text-slate-400 text-center"><i class="fas fa-receipt text-2xl block mb-2"></i>${emptyMsg || 'Sem vendas.'}</p>`;
+            const canAnular = can('loja') || can('financas');
+            return `
+                <table class="w-full text-left text-xs">
+                    <thead class="bg-cfcDarkBlue text-white uppercase">
+                        <tr><th class="p-3">Nº</th><th class="p-3">Data</th><th class="p-3">Cliente</th><th class="p-3">Tipo</th><th class="p-3">Artigos</th><th class="p-3 text-right">Total</th><th class="p-3">Pagamento</th><th class="p-3">Ações</th></tr>
+                    </thead>
+                    <tbody class="divide-y">
+                        ${vendas.map(v => `
+                            <tr class="${v.estado === 'Anulada' ? 'opacity-50 line-through' : ''}">
+                                <td class="p-3 font-bold text-cfcBlue whitespace-nowrap">${esc(v.id)}</td>
+                                <td class="p-3 whitespace-nowrap">${fmtDate(v.data)} ${esc(v.hora)}</td>
+                                <td class="p-3">${esc(v.cliente)}${v.socioId ? ` <span class="text-slate-400">(${esc(v.socioId)})</span>` : ''}</td>
+                                <td class="p-3">${tipoBadge(v)}</td>
+                                <td class="p-3">${v.itens.map(i => `${i.qtd}× ${esc(i.produto)}`).join(', ')}</td>
+                                <td class="p-3 text-right font-bold whitespace-nowrap">${kz(v.total)}${v.desconto ? `<span class="block text-[10px] font-normal text-green-600">desc. ${kz(v.desconto)}</span>` : ''}</td>
+                                <td class="p-3">${esc(v.pagamento)}</td>
+                                <td class="p-3 whitespace-nowrap no-underline">
+                                    <button onclick="exportVendas([findVenda('${esc(v.id)}')], 'CFC_Venda_${esc(v.id)}', 'Venda ${esc(v.id)}')" class="text-green-700 hover:text-green-900 mr-2" title="Descarregar Excel desta venda" aria-label="Excel desta venda"><i class="fas fa-file-excel"></i></button>
+                                    <button onclick="printRecibo('${esc(v.id)}')" class="text-slate-500 hover:text-cfcBlue mr-2" title="Imprimir recibo" aria-label="Imprimir recibo"><i class="fas fa-print"></i></button>
+                                    ${v.estado === 'Anulada' ? '<span class="text-red-600 font-bold">Anulada</span>' : (canAnular ? `<button onclick="anularVenda('${esc(v.id)}')" class="text-red-600 font-bold hover:underline">Anular</button>` : '')}
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>`;
+        }
+        function findVenda(id) { return clubData.vendas.find(v => v.id === id); }
+
+        async function anularVenda(id) {
+            if (!(can('loja') || can('financas'))) return showBoToast('Sem permissão para anular vendas.');
+            const motivo = await uiPrompt(`Anular venda ${id}`, 'Escreva o motivo da anulação. O stock e as vagas serão repostos.', { placeholder: 'Ex.: cliente desistiu', okText: 'Anular venda' });
+            if (motivo === null) return;
+            if (!motivo.trim()) return showBoToast('Indique o motivo da anulação.');
+            mutate(d => {
+                const v = d.vendas.find(x => x.id === id);
+                if (!v || v.estado === 'Anulada') return;
+                v.itens.forEach(it => {
+                    const p = d.catalogo.find(x => x.id === it.produtoId);
+                    if (!p) return;
+                    if (p.bancada && d.bancadas[p.bancada]) d.bancadas[p.bancada].vendidos = Math.max(0, d.bancadas[p.bancada].vendidos - it.qtd);
+                    else if (p.stock != null) p.stock += it.qtd;
+                });
+                v.estado = 'Anulada'; v.motivoAnulacao = motivo.trim(); v.anuladaPor = currentUser.nome;
+            });
+            logAudit(`Anulou a venda ${id} (${motivo.trim()})`);
+            showBoToast(`Venda ${id} anulada e stock reposto.`);
+            selectBoTab(activeTab);
+        }
+
+        // ======================================================================
+        // 1. VISÃO GERAL (inteligente)
+        // ======================================================================
+        const QUICK = [
+            { perm: 'loja', icon: 'fa-cash-register', label: 'Nova venda', sub: 'Bilhetes e loja', go: () => goTo('loja') },
+            { perm: 'socios', icon: 'fa-user-plus', label: 'Novo sócio', sub: 'Registar associado', go: () => goTo('socios', 'soc-nome') },
+            { perm: 'financas', icon: 'fa-file-excel', label: 'Exportar vendas', sub: 'Ficheiro Excel', go: () => goTo('financas') },
+            { perm: 'gestao', icon: 'fa-newspaper', label: 'Publicar notícia', sub: 'Aparece no site', go: () => goTo('gestao', 'news-title') },
+            { perm: 'bilheteria', icon: 'fa-ticket-alt', label: 'Lotação', sub: 'Ver bancadas', go: () => goTo('bilheteria') },
+            { perm: 'contactos', icon: 'fa-envelope-open-text', label: 'Mensagens', sub: 'Responder contactos', go: () => goTo('contactos') }
+        ];
+
         function renderBoDashboard(box) {
-            const logs = JSON.parse(localStorage.getItem(AUDIT_KEY) || '[]');
+            let logs = [];
+            try { logs = JSON.parse(localStorage.getItem(AUDIT_KEY) || '[]'); } catch (e) {}
+            const socios = clubData.sociosCRM || [];
+            const emDia = socios.filter(s => s.quotas === 'Em dia').length;
+            const ok = (clubData.vendas || []).filter(v => v.estado !== 'Anulada');
+            const hoje = todayISO(), mes = hoje.slice(0, 7);
+            const vHoje = ok.filter(v => v.data === hoje).reduce((s, v) => s + v.total, 0);
+            const vMes = ok.filter(v => v.data.slice(0, 7) === mes).reduce((s, v) => s + v.total, 0);
+            const verFin = can('financas');
+            const pend = (clubData.mensagensContacto || []).filter(m => m.estado !== 'Respondida').length;
+            const al = computeAlerts();
+            const h = new Date().getHours();
+            const saud = h < 12 ? 'Bom dia' : h < 19 ? 'Boa tarde' : 'Boa noite';
+
+            // gráfico dos últimos 7 dias
+            const days = [...Array(7)].map((_, i) => { const dt = new Date(); dt.setDate(dt.getDate() - (6 - i)); return isoOf(dt); });
+            const vals = days.map(day => ok.filter(v => v.data === day).reduce((s, v) => s + v.total, 0));
+            const max = Math.max(...vals, 1);
+            const chart = verFin ? `
+                <div class="bg-white p-6 rounded-2xl shadow">
+                    <h3 class="font-display text-lg font-bold text-cfcDarkBlue uppercase mb-4"><i class="fas fa-chart-bar text-cfcBlue mr-2"></i> Vendas da loja — últimos 7 dias</h3>
+                    <div class="flex items-end gap-2 sm:gap-3 h-40">
+                        ${vals.map((v, i) => `
+                            <div class="flex-1 flex flex-col items-center justify-end h-full min-w-0">
+                                <span class="text-[10px] text-slate-500 mb-1 truncate">${v ? kzShort(v) : ''}</span>
+                                <div class="w-full rounded-t-lg bar-grow ${v ? 'bg-cfcBlue' : 'bg-slate-200'}" style="height:${v ? Math.max(6, Math.round(v / max * 100)) : 4}px"></div>
+                                <span class="text-[10px] text-slate-400 mt-1">${days[i].slice(8)}/${days[i].slice(5, 7)}</span>
+                            </div>`).join('')}
+                    </div>
+                    ${ok.length ? '' : '<p class="text-xs text-slate-400 text-center mt-3">Ainda não há vendas. Faça a primeira na área Loja & Vendas.</p>'}
+                </div>` : '';
+            const quick = QUICK.map((q, i) => ({ q, i })).filter(x => can(x.q.perm));
+
             box.innerHTML = `
                 <div class="fade-in space-y-6">
-                    <h2 class="font-display text-2xl font-bold text-cfcDarkBlue uppercase">Visão Geral do Clube</h2>
+                    <div class="bg-gradient-to-r from-cfcDarkBlue to-cfcBlue text-white p-6 rounded-2xl shadow-lg">
+                        <p class="text-xs text-blue-200 capitalize">${new Date().toLocaleDateString('pt-PT', { weekday: 'long', day: 'numeric', month: 'long' })}</p>
+                        <h2 class="font-display text-2xl sm:text-3xl font-bold uppercase mt-1">${saud}, ${esc(firstName(currentUser.nome))}!</h2>
+                        <p class="text-sm text-blue-100 mt-1">${al.length ? `Tem ${al.length} aviso(s) que merecem a sua atenção.` : 'Está tudo em ordem. Bom trabalho!'}</p>
+                    </div>
+
+                    ${al.length ? `
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        ${al.map(x => `
+                            <button onclick="goTo('${x.tab}')" class="text-left flex items-center gap-3 p-4 rounded-xl border border-amber-200 bg-amber-50 hover:bg-amber-100 transition">
+                                <span class="w-10 h-10 rounded-full bg-amber-200 text-amber-700 flex items-center justify-center flex-shrink-0"><i class="fas ${x.icon}"></i></span>
+                                <span class="flex-1 text-xs font-semibold text-slate-700">${esc(x.text)}</span>
+                                <i class="fas fa-chevron-right text-amber-400 text-xs"></i>
+                            </button>`).join('')}
+                    </div>` : ''}
+
+                    ${quick.length ? `
+                    <div>
+                        <p class="text-[11px] font-bold uppercase text-slate-400 mb-2">Atalhos rápidos</p>
+                        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+                            ${quick.map(x => `
+                                <button onclick="QUICK[${x.i}].go()" class="bg-white p-4 rounded-xl shadow hover:shadow-md hover:-translate-y-0.5 transition text-center">
+                                    <span class="w-11 h-11 mx-auto rounded-xl bg-cfcLightBlue text-cfcBlue flex items-center justify-center text-lg mb-2"><i class="fas ${x.q.icon}"></i></span>
+                                    <span class="block text-xs font-bold text-cfcDarkBlue">${x.q.label}</span>
+                                    <span class="block text-[10px] text-slate-400">${x.q.sub}</span>
+                                </button>`).join('')}
+                        </div>
+                    </div>` : ''}
+
                     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                         <div class="bg-white p-5 rounded-xl shadow border-l-4 border-cfcBlue">
                             <span class="text-xs text-slate-400 font-bold uppercase">Sócios Registados</span>
-                            <p class="font-display text-3xl font-bold text-slate-800 mt-1">${(clubData.sociosCRM || []).length} (4.820 ativos)</p>
+                            <p class="font-display text-3xl font-bold text-slate-800 mt-1">${socios.length}</p>
+                            <p class="text-[11px] text-slate-500">${emDia} com quotas em dia • ${socios.length - emDia} pendentes</p>
                         </div>
                         <div class="bg-white p-5 rounded-xl shadow border-l-4 border-green-500">
-                            <span class="text-xs text-slate-400 font-bold uppercase">Receita Mensal</span>
-                            <p class="font-display text-3xl font-bold text-slate-800 mt-1">18.4M Kz</p>
+                            <span class="text-xs text-slate-400 font-bold uppercase">Vendas da Loja (Hoje)</span>
+                            <p class="font-display text-3xl font-bold text-slate-800 mt-1">${verFin ? kz(vHoje) : '—'}</p>
+                            <p class="text-[11px] text-slate-500">${verFin ? 'Este mês: ' + kz(vMes) : 'Visível apenas para Finanças'}</p>
                         </div>
                         <div class="bg-white p-5 rounded-xl shadow border-l-4 border-cfcAccent">
                             <span class="text-xs text-slate-400 font-bold uppercase">Itens Multimédia</span>
@@ -328,16 +1019,19 @@
                         <div class="bg-white p-5 rounded-xl shadow border-l-4 border-yellow-500">
                             <span class="text-xs text-slate-400 font-bold uppercase">Mensagens Contacto</span>
                             <p class="font-display text-3xl font-bold text-slate-800 mt-1">${(clubData.mensagensContacto || []).length}</p>
+                            <p class="text-[11px] text-slate-500">${pend} por responder</p>
                         </div>
                     </div>
 
+                    ${chart}
+
                     <div class="bg-white p-6 rounded-2xl shadow">
-                        <h3 class="font-display text-lg font-bold text-cfcDarkBlue uppercase mb-3"><i class="fas fa-history text-cfcBlue mr-2"></i> Registo de Auditoria (Últimas Ações)</h3>
+                        <h3 class="font-display text-lg font-bold text-cfcDarkBlue uppercase mb-3"><i class="fas fa-history text-cfcBlue mr-2"></i> Últimas ações no sistema</h3>
                         <div class="divide-y text-xs">
                             ${logs.slice(0, 8).map(l => `
-                                <div class="py-2.5 flex justify-between items-center">
-                                    <span><strong class="text-cfcBlue">${l.usuario}</strong> — ${l.acao}</span>
-                                    <span class="text-slate-400">${l.data}</span>
+                                <div class="py-2.5 flex justify-between items-center gap-3">
+                                    <span><strong class="text-cfcBlue">${esc(l.usuario)}</strong> — ${esc(l.acao)}</span>
+                                    <span class="text-slate-400 whitespace-nowrap hidden sm:inline">${esc(l.data)}</span>
                                 </div>
                             `).join('') || '<p class="text-slate-400">Sem registos ainda.</p>'}
                         </div>
@@ -346,108 +1040,537 @@
             `;
         }
 
-        // ==========================================
+        // ======================================================================
         // 2. ÁREA DE SÓCIOS & CRM
-        // ==========================================
+        // ======================================================================
+        let soc = { q: '', cat: '', quota: '' };
+
+        function socioStats(id) {
+            const vs = (clubData.vendas || []).filter(v => v.socioId === id && v.estado !== 'Anulada');
+            return { n: vs.length, total: vs.reduce((s, v) => s + v.total, 0), desc: vs.reduce((s, v) => s + v.desconto, 0) };
+        }
+
+        function waLink(s) {
+            let dg = (s.telemovel || '').replace(/\D/g, '');
+            if (dg.length === 9) dg = '244' + dg;
+            const msg = `Olá ${firstName(s.nome)}, aqui é o Carlos Futebol Clube. Verificámos que as suas quotas de sócio (${s.id}) estão pendentes. Pode regularizar quando lhe for conveniente? Obrigado pelo seu apoio!`;
+            return `https://wa.me/${dg}?text=${encodeURIComponent(msg)}`;
+        }
+
         function renderBoSocios(box) {
+            soc = { q: '', cat: '', quota: '' };
+            const tot = clubData.sociosCRM.length, pend = clubData.sociosCRM.filter(s => s.quotas !== 'Em dia').length;
             box.innerHTML = `
                 <div class="fade-in space-y-6">
                     <div class="bg-white p-6 rounded-2xl shadow border-l-8 border-cfcBlue flex flex-wrap justify-between items-center gap-4">
                         <div>
                             <h2 class="font-display text-2xl font-bold text-cfcDarkBlue uppercase">Gestão de Sócios & Quotas</h2>
-                            <p class="text-xs text-slate-500">Módulo dedicado à administração de associados e cobrança de quotas.</p>
+                            <p class="text-xs text-slate-500">Administração de associados, cobrança de quotas e descontos de loja.</p>
                         </div>
+                        <button onclick="exportSocios()" class="bg-green-600 hover:bg-green-700 text-white font-bold rounded-lg px-4 py-2.5 text-xs"><i class="fas fa-file-excel mr-1"></i> Exportar Sócios (Excel)</button>
+                    </div>
+
+                    <div class="grid grid-cols-3 gap-3 text-center text-xs">
+                        <button onclick="socQuick('')" class="bg-white p-3 rounded-xl shadow hover:shadow-md transition"><span class="block font-display text-2xl text-cfcDarkBlue">${tot}</span>Todos</button>
+                        <button onclick="socQuick('Em dia')" class="bg-white p-3 rounded-xl shadow hover:shadow-md transition"><span class="block font-display text-2xl text-green-600">${tot - pend}</span>Em dia</button>
+                        <button onclick="socQuick('Pendente')" class="bg-white p-3 rounded-xl shadow hover:shadow-md transition"><span class="block font-display text-2xl text-red-600">${pend}</span>Pendentes</button>
+                    </div>
+
+                    <div class="bg-white p-6 rounded-2xl shadow space-y-4">
+                        <div>
+                            <h3 class="font-bold text-sm uppercase text-cfcDarkBlue"><i class="fas fa-percent text-cfcBlue mr-1"></i> Descontos de Sócio na Loja</h3>
+                            <p class="text-[11px] text-slate-500">Aplicados automaticamente em bilhetes, camisolas, casacos e bonés quando a compra é feita por um sócio.</p>
+                        </div>
+                        <form onsubmit="saveDescontos(event)" class="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+                            ${SOCIO_CATEGORIAS.map((c, i) => `
+                                <label class="block"><span class="font-bold text-slate-600">${esc(c)} (%)</span>
+                                    <input type="number" min="0" max="100" step="1" id="desc-${i}" value="${Number(clubData.descontos[c]) || 0}" class="mt-1 w-full border rounded-lg px-3 py-2">
+                                </label>`).join('')}
+                            <label class="sm:col-span-3 flex items-center space-x-2 bg-slate-50 border rounded-lg p-3">
+                                <input type="checkbox" id="desc-bloq" ${clubData.config.bloquearDescontoQuotasPendentes ? 'checked' : ''}>
+                                <span class="font-semibold text-slate-700">Sócios com quotas pendentes <u>não</u> têm desconto</span>
+                            </label>
+                            <div class="sm:col-span-3"><button type="submit" class="bg-cfcBlue hover:bg-cfcDarkBlue text-white font-bold rounded-lg px-4 py-2.5">Guardar Descontos</button></div>
+                        </form>
                     </div>
 
                     <div class="bg-white p-6 rounded-2xl shadow space-y-4">
                         <h3 class="font-bold text-sm uppercase text-cfcDarkBlue">Adicionar Novo Sócio</h3>
                         <form onsubmit="addSocio(event)" class="grid grid-cols-1 sm:grid-cols-4 gap-3">
-                            <input type="text" id="soc-nome" required placeholder="Nome completo" class="border rounded-lg px-3 py-2 text-xs">
-                            <select id="soc-cat" class="border rounded-lg px-3 py-2 text-xs">
-                                <option>Sócio Efetivo</option>
-                                <option>Sócio VIP Teca</option>
-                                <option>Sócio Correspondente</option>
-                            </select>
-                            <input type="text" id="soc-tel" required placeholder="Telemóvel (+244...)" class="border rounded-lg px-3 py-2 text-xs">
-                            <button type="submit" class="bg-cfcBlue text-white font-bold rounded-lg px-4 py-2 text-xs hover:bg-cfcDarkBlue">Registar Sócio</button>
+                            <input type="text" id="soc-nome" required placeholder="Nome completo" class="border rounded-lg px-3 py-2.5 text-xs">
+                            <select id="soc-cat" class="border rounded-lg px-3 py-2.5 text-xs">${SOCIO_CATEGORIAS.map(c => `<option>${esc(c)}</option>`).join('')}</select>
+                            <input type="tel" id="soc-tel" required placeholder="Telemóvel (+244...)" class="border rounded-lg px-3 py-2.5 text-xs">
+                            <button type="submit" class="bg-cfcBlue text-white font-bold rounded-lg px-4 py-2.5 text-xs hover:bg-cfcDarkBlue">Registar Sócio</button>
                         </form>
                     </div>
 
-                    <div class="bg-white rounded-2xl shadow overflow-x-auto">
-                        <table class="w-full text-left text-xs">
-                            <thead class="bg-cfcDarkBlue text-white uppercase">
-                                <tr>
-                                    <th class="p-3.5">Nº Sócio</th>
-                                    <th class="p-3.5">Nome</th>
-                                    <th class="p-3.5">Categoria</th>
-                                    <th class="p-3.5">Telemóvel</th>
-                                    <th class="p-3.5">Estado Quotas</th>
-                                    <th class="p-3.5">Ação</th>
-                                </tr>
-                            </thead>
-                            <tbody class="divide-y">
-                                ${(clubData.sociosCRM || []).map((s, idx) => `
-                                    <tr>
-                                        <td class="p-3.5 font-bold text-cfcBlue">${s.id}</td>
-                                        <td class="p-3.5 font-semibold">${s.nome}</td>
-                                        <td class="p-3.5">${s.categoria}</td>
-                                        <td class="p-3.5">${s.telemovel}</td>
-                                        <td class="p-3.5"><span class="px-2 py-0.5 rounded font-bold ${s.quotas === 'Em dia' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}">${s.quotas}</span></td>
-                                        <td class="p-3.5">
-                                            <button onclick="toggleQuota(${idx})" class="text-cfcBlue font-bold hover:underline">Alternar Estado</button>
-                                        </td>
-                                    </tr>
-                                `).join('')}
-                            </tbody>
-                        </table>
+                    <div class="bg-white p-4 rounded-2xl shadow grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+                        <input type="search" id="soc-f-q" oninput="socFilter()" placeholder="Pesquisar por nome, nº ou telemóvel..." class="border rounded-lg px-3 py-2.5">
+                        <select id="soc-f-cat" onchange="socFilter()" class="border rounded-lg px-3 py-2.5"><option value="">Todas as categorias</option>${SOCIO_CATEGORIAS.map(c => `<option>${esc(c)}</option>`).join('')}</select>
+                        <select id="soc-f-quota" onchange="socFilter()" class="border rounded-lg px-3 py-2.5"><option value="">Todas as quotas</option><option>Em dia</option><option>Pendente</option></select>
                     </div>
+
+                    <div id="soc-table" class="bg-white rounded-2xl shadow overflow-x-auto"></div>
+                    <div id="socio-hist"></div>
                 </div>
             `;
+            socRenderTable();
+        }
+
+        function socQuick(q) { $('soc-f-quota').value = q; socFilter(); }
+        function socFilter() {
+            soc.q = $('soc-f-q').value.trim().toLowerCase();
+            soc.cat = $('soc-f-cat').value;
+            soc.quota = $('soc-f-quota').value;
+            socRenderTable();
+        }
+
+        function socRenderTable() {
+            const list = (clubData.sociosCRM || []).filter(s =>
+                (!soc.q || (s.nome + ' ' + s.id + ' ' + s.telemovel).toLowerCase().includes(soc.q)) &&
+                (!soc.cat || s.categoria === soc.cat) && (!soc.quota || s.quotas === soc.quota));
+            $('soc-table').innerHTML = `
+                <table class="w-full text-left text-xs">
+                    <thead class="bg-cfcDarkBlue text-white uppercase">
+                        <tr><th class="p-3.5">Nº Sócio</th><th class="p-3.5">Nome</th><th class="p-3.5">Categoria</th><th class="p-3.5">Desconto</th><th class="p-3.5">Telemóvel</th><th class="p-3.5">Quotas</th><th class="p-3.5">Compras na Loja</th><th class="p-3.5">Ação</th></tr>
+                    </thead>
+                    <tbody class="divide-y">
+                        ${list.map(s => {
+                            const st = socioStats(s.id);
+                            const pct = Number(clubData.descontos[s.categoria]) || 0;
+                            const aplica = !(clubData.config.bloquearDescontoQuotasPendentes && s.quotas !== 'Em dia');
+                            return `
+                            <tr>
+                                <td class="p-3.5 font-bold text-cfcBlue">${esc(s.id)}</td>
+                                <td class="p-3.5 font-semibold">${esc(s.nome)}</td>
+                                <td class="p-3.5"><select onchange="changeSocioCat('${esc(s.id)}', this.value)" class="border rounded px-1.5 py-1">${SOCIO_CATEGORIAS.map(c => `<option ${c === s.categoria ? 'selected' : ''}>${esc(c)}</option>`).join('')}</select></td>
+                                <td class="p-3.5">${aplica ? `<span class="font-bold text-green-700">${pct}%</span>` : '<span class="font-bold text-amber-700">0% (quotas)</span>'}</td>
+                                <td class="p-3.5">${esc(s.telemovel)}</td>
+                                <td class="p-3.5"><span class="px-2 py-0.5 rounded font-bold ${s.quotas === 'Em dia' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}">${esc(s.quotas)}</span></td>
+                                <td class="p-3.5"><button onclick="verComprasSocio('${esc(s.id)}')" class="text-cfcBlue font-bold hover:underline">${st.n} compra(s) • ${kz(st.total)}</button></td>
+                                <td class="p-3.5 whitespace-nowrap">
+                                    ${s.quotas !== 'Em dia' ? `<a href="${waLink(s)}" target="_blank" rel="noopener" class="text-green-600 font-bold hover:underline mr-2"><i class="fab fa-whatsapp"></i> Cobrar</a>` : ''}
+                                    <button onclick="toggleQuota('${esc(s.id)}')" class="text-cfcBlue font-bold hover:underline mr-2">Alternar Quotas</button>
+                                    <button onclick="removeSocio('${esc(s.id)}')" class="text-red-600 font-bold hover:underline">Remover</button>
+                                </td>
+                            </tr>`;
+                        }).join('') || '<tr><td colspan="8" class="p-8 text-center text-slate-400"><i class="fas fa-users text-2xl block mb-2"></i>Nenhum sócio encontrado.</td></tr>'}
+                    </tbody>
+                </table>`;
         }
 
         function addSocio(e) {
             e.preventDefault();
-            const nome = document.getElementById('soc-nome').value.trim();
-            const categoria = document.getElementById('soc-cat').value;
-            const telemovel = document.getElementById('soc-tel').value.trim();
-            const num = 'CFC-' + String((clubData.sociosCRM || []).length + 1).padStart(3, '0');
-            clubData.sociosCRM.push({ id: num, nome, categoria, quotas: 'Em dia', telemovel });
-            saveClubData();
+            const nome = $('soc-nome').value.trim();
+            const categoria = $('soc-cat').value;
+            const telemovel = $('soc-tel').value.trim();
+            if (!/^\+?[\d\s]{9,16}$/.test(telemovel)) return showBoToast('Telemóvel inválido (ex.: +244 923 000 000).');
+            const dig = telemovel.replace(/\D/g, '');
+            if ((clubData.sociosCRM || []).some(s => s.telemovel.replace(/\D/g, '') === dig)) return showBoToast('Já existe um sócio com este telemóvel.');
+            let num;
+            mutate(d => {
+                const max = d.sociosCRM.reduce((m, s) => Math.max(m, parseInt(String(s.id).replace(/\D/g, ''), 10) || 0), 0);
+                num = 'CFC-' + pad(max + 1, 3);
+                d.sociosCRM.push({ id: num, nome, categoria, quotas: 'Em dia', telemovel });
+            });
             logAudit(`Registou novo sócio ${num} (${nome})`);
             showBoToast(`Sócio ${num} registado!`);
             selectBoTab('socios');
         }
 
-        function toggleQuota(idx) {
-            const s = clubData.sociosCRM[idx];
-            s.quotas = s.quotas === 'Em dia' ? 'Pendente' : 'Em dia';
-            saveClubData();
-            logAudit(`Atualizou quotas do sócio ${s.id} para "${s.quotas}"`);
+        function toggleQuota(id) {
+            let novo = '';
+            mutate(d => { const s = d.sociosCRM.find(x => x.id === id); if (s) { s.quotas = s.quotas === 'Em dia' ? 'Pendente' : 'Em dia'; novo = s.quotas; } });
+            logAudit(`Atualizou quotas do sócio ${id} para "${novo}"`);
             selectBoTab('socios');
         }
 
-        // ==========================================
-        // 3. FINANÇAS & RECEITAS
-        // ==========================================
+        function changeSocioCat(id, cat) {
+            mutate(d => { const s = d.sociosCRM.find(x => x.id === id); if (s) s.categoria = cat; });
+            logAudit(`Alterou a categoria do sócio ${id} para "${cat}"`);
+            showBoToast('Categoria atualizada.');
+            socRenderTable();
+        }
+
+        async function removeSocio(id) {
+            const s = clubData.sociosCRM.find(x => x.id === id);
+            if (!s) return;
+            const ok = await uiConfirm('Remover sócio', `Remover ${s.nome} (${s.id})? O histórico de vendas já registado é mantido.`, { danger: true, okText: 'Remover' });
+            if (!ok) return;
+            mutate(d => { d.sociosCRM = d.sociosCRM.filter(x => x.id !== id); });
+            logAudit(`Removeu o sócio ${id} (${s.nome})`);
+            selectBoTab('socios');
+        }
+
+        function saveDescontos(e) {
+            e.preventDefault();
+            const vals = {};
+            for (let i = 0; i < SOCIO_CATEGORIAS.length; i++) {
+                const v = Number($('desc-' + i).value);
+                if (!(v >= 0 && v <= 100)) return showBoToast('Os descontos têm de estar entre 0 e 100%.');
+                vals[SOCIO_CATEGORIAS[i]] = v;
+            }
+            const bloq = $('desc-bloq').checked;
+            mutate(d => { d.descontos = vals; d.config.bloquearDescontoQuotasPendentes = bloq; });
+            logAudit(`Alterou descontos de sócio: ${SOCIO_CATEGORIAS.map(c => c + ' ' + vals[c] + '%').join(', ')}; bloquear com quotas pendentes: ${bloq ? 'sim' : 'não'}`);
+            showBoToast('Descontos guardados!');
+            selectBoTab('socios');
+        }
+
+        function verComprasSocio(id) {
+            const s = clubData.sociosCRM.find(x => x.id === id);
+            const vs = (clubData.vendas || []).filter(v => v.socioId === id);
+            $('socio-hist').innerHTML = `
+                <div class="bg-white rounded-2xl shadow overflow-x-auto fade-in">
+                    <h3 class="p-4 font-bold text-sm uppercase text-cfcDarkBlue border-b">Compras de ${esc(s ? s.nome : id)} (${esc(id)})</h3>
+                    ${salesTableHTML(vs, 'Este sócio ainda não fez compras na loja.')}
+                </div>`;
+            $('socio-hist').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+
+        function exportSocios() {
+            const aoa = [['Nº Sócio', 'Nome', 'Categoria', 'Desconto (%)', 'Telemóvel', 'Quotas', 'Nº Compras', 'Total Gasto (Kz)', 'Desconto Obtido (Kz)']];
+            (clubData.sociosCRM || []).forEach(s => {
+                const st = socioStats(s.id);
+                aoa.push([s.id, s.nome, s.categoria, Number(clubData.descontos[s.categoria]) || 0, s.telemovel, s.quotas, st.n, st.total, st.desc]);
+            });
+            const fmt = saveWorkbook('CFC_Socios_' + todayISO(), [{ name: 'Sócios', aoa, widths: [11, 28, 22, 13, 18, 10, 12, 16, 18], money: [7, 8] }]);
+            logAudit('Exportou a lista de sócios (' + fmt.toUpperCase() + ')');
+            showBoToast(fmt === 'xlsx' ? 'Ficheiro Excel gerado!' : 'Gerado CSV (abre no Excel).');
+        }
+
+        // ======================================================================
+        // 3. LOJA & VENDAS (PDV)
+        // ======================================================================
+        let pos = null;
+        function newPos() { return { tipo: 'nao-socio', socioId: '', cart: [], nome: '', tel: '', pag: PAGAMENTOS[0] }; }
+
+        function renderBoLoja(box) {
+            pos = newPos();
+            box.innerHTML = `
+                <div class="fade-in space-y-6">
+                    <div class="bg-white p-6 rounded-2xl shadow border-l-8 border-cfcAccent">
+                        <h2 class="font-display text-2xl font-bold text-cfcDarkBlue uppercase">Loja Oficial & Bilhetes (Ponto de Venda)</h2>
+                        <p class="text-xs text-slate-500">Cada venda fica registada automaticamente em Finanças, identificando se foi de sócio (com desconto) ou não sócio. Próximo jogo: <strong>${esc(clubData.config.proximoJogo)}</strong></p>
+                    </div>
+
+                    <div id="pos-done"></div>
+
+                    <div class="grid grid-cols-1 lg:grid-cols-5 gap-6">
+                        <div class="lg:col-span-3 space-y-6">
+                            <div class="bg-white p-6 rounded-2xl shadow space-y-4">
+                                <h3 class="font-bold text-sm uppercase text-cfcDarkBlue">1. Cliente</h3>
+                                <div class="grid grid-cols-2 gap-2 text-xs">
+                                    <button id="pos-t-nao" onclick="posSetTipo('nao-socio')" class="px-3 py-3 rounded-lg font-bold border">Não sócio<span class="block font-normal text-[10px]">preço normal</span></button>
+                                    <button id="pos-t-soc" onclick="posSetTipo('socio')" class="px-3 py-3 rounded-lg font-bold border">Sócio<span class="block font-normal text-[10px]">com desconto</span></button>
+                                </div>
+                                <div id="pos-customer"></div>
+                            </div>
+                            <div class="bg-white p-6 rounded-2xl shadow space-y-4">
+                                <h3 class="font-bold text-sm uppercase text-cfcDarkBlue">2. Artigos</h3>
+                                <div id="pos-products" class="space-y-4"></div>
+                            </div>
+                        </div>
+                        <div class="lg:col-span-2">
+                            <div class="bg-white p-6 rounded-2xl shadow space-y-4 lg:sticky lg:top-0">
+                                <h3 class="font-bold text-sm uppercase text-cfcDarkBlue">3. Carrinho & Pagamento</h3>
+                                <div id="pos-cart"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-white rounded-2xl shadow overflow-x-auto">
+                        <h3 class="p-4 font-bold text-sm uppercase text-cfcDarkBlue border-b">Últimas Vendas</h3>
+                        <div id="pos-recent"></div>
+                    </div>
+
+                    <details class="bg-white rounded-2xl shadow">
+                        <summary class="p-4 font-bold text-sm uppercase text-cfcDarkBlue cursor-pointer">Preços & Stock dos Artigos</summary>
+                        <div class="p-4 pt-0 text-xs overflow-x-auto">
+                            <table class="w-full text-left">
+                                <thead class="uppercase text-slate-500"><tr><th class="py-2">Artigo</th><th>Categoria</th><th>Preço (Kz)</th><th>Stock / Vagas</th><th></th></tr></thead>
+                                <tbody class="divide-y">
+                                    ${clubData.catalogo.map(p => `
+                                        <tr>
+                                            <td class="py-2 font-semibold">${esc(p.nome)}</td><td>${esc(p.cat)}</td>
+                                            <td><input type="number" min="0" id="cat-preco-${esc(p.id)}" value="${p.preco}" class="border rounded px-2 py-1 w-28"></td>
+                                            <td>${p.bancada ? `${disponivel(clubData, p)} vagas` : `<input type="number" min="0" id="cat-stock-${esc(p.id)}" value="${p.stock}" class="border rounded px-2 py-1 w-24">`}</td>
+                                            <td><button onclick="saveCatalogItem('${esc(p.id)}')" class="text-cfcBlue font-bold hover:underline">Guardar</button></td>
+                                        </tr>`).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                    </details>
+                </div>
+            `;
+            posRenderCustomer(); posRenderProducts(); posRenderCart(); posRenderRecent();
+        }
+
+        function saveCatalogItem(id) {
+            const preco = Number($('cat-preco-' + id).value);
+            const stockEl = $('cat-stock-' + id);
+            if (!(preco >= 0)) return showBoToast('Preço inválido.');
+            mutate(d => {
+                const p = d.catalogo.find(x => x.id === id);
+                p.preco = Math.round(preco);
+                if (stockEl) p.stock = Math.max(0, Math.round(Number(stockEl.value) || 0));
+            });
+            logAudit(`Atualizou preço/stock do artigo ${id} (${kz(preco)})`);
+            showBoToast('Artigo atualizado.');
+            posRenderProducts(); posRenderCart();
+        }
+
+        function posSetTipo(t) {
+            pos.tipo = t;
+            if (t === 'nao-socio') pos.socioId = '';
+            posRenderCustomer(); posRenderProducts(); posRenderCart();
+        }
+
+        function posRenderCustomer() {
+            $('pos-t-nao').className = 'px-3 py-3 rounded-lg font-bold border ' + (pos.tipo === 'nao-socio' ? 'bg-cfcBlue text-white border-cfcBlue' : 'bg-white text-slate-600 hover:border-cfcBlue');
+            $('pos-t-soc').className = 'px-3 py-3 rounded-lg font-bold border ' + (pos.tipo === 'socio' ? 'bg-cfcBlue text-white border-cfcBlue' : 'bg-white text-slate-600 hover:border-cfcBlue');
+            const box = $('pos-customer');
+            if (pos.tipo === 'socio') {
+                const cur = clubData.sociosCRM.find(s => s.id === pos.socioId);
+                box.innerHTML = `
+                    <input type="text" list="pos-socios-list" id="pos-socio-in" value="${cur ? esc(cur.id + ' — ' + cur.nome) : ''}" oninput="posSocioInput(this.value)" placeholder="Escreva o nº ou nome do sócio..." class="w-full border rounded-lg px-3 py-2.5 text-xs">
+                    <datalist id="pos-socios-list">${clubData.sociosCRM.map(s => `<option value="${esc(s.id + ' — ' + s.nome)}"></option>`).join('')}</datalist>
+                    <div id="pos-socio-status" class="mt-3"></div>`;
+                posRenderSocioStatus();
+            } else {
+                box.innerHTML = `
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                        <input type="text" value="${esc(pos.nome)}" oninput="pos.nome=this.value" placeholder="Nome do cliente (opcional)" class="border rounded-lg px-3 py-2.5">
+                        <input type="tel" value="${esc(pos.tel)}" oninput="pos.tel=this.value" placeholder="Telemóvel (opcional)" class="border rounded-lg px-3 py-2.5">
+                    </div>
+                    <p class="text-[11px] text-slate-400 mt-2">Cliente não sócio: paga o preço normal, sem desconto.</p>`;
+            }
+        }
+
+        function posSocioInput(v) {
+            const t = v.trim().toLowerCase();
+            const m = clubData.sociosCRM.find(s => t.startsWith(s.id.toLowerCase()) || t === s.nome.toLowerCase());
+            pos.socioId = m ? m.id : '';
+            posRenderSocioStatus(); posRenderProducts(); posRenderCart();
+        }
+
+        function posRenderSocioStatus() {
+            const el = $('pos-socio-status');
+            if (!el) return;
+            const pr = priceCart(clubData, 'socio', pos.socioId, []);
+            if (!pr.socio) { el.innerHTML = '<p class="text-xs text-slate-400"><i class="fas fa-search mr-1"></i> Selecione um sócio da lista para aplicar o desconto.</p>'; return; }
+            el.innerHTML = `
+                <div class="p-3 rounded-xl border text-xs ${pr.pct > 0 ? 'bg-green-50 border-green-200' : 'bg-amber-50 border-amber-200'}">
+                    <p class="font-bold text-slate-800">${esc(pr.socio.nome)} <span class="text-slate-400 font-normal">(${esc(pr.socio.id)})</span></p>
+                    <p class="text-slate-600">${esc(pr.socio.categoria)} • Quotas: <strong>${esc(pr.socio.quotas)}</strong></p>
+                    <p class="mt-1 font-bold ${pr.pct > 0 ? 'text-green-700' : 'text-amber-700'}">${pr.pct > 0 ? `Desconto de ${pr.pct}% aplicado a todos os artigos` : `Sem desconto: ${esc(pr.motivo || 'categoria sem desconto definido')}`}</p>
+                </div>`;
+        }
+
+        function posRenderProducts() {
+            const pr = priceCart(clubData, pos.tipo, pos.socioId, []);
+            const cats = [...new Set(clubData.catalogo.map(p => p.cat))];
+            $('pos-products').innerHTML = cats.map(cat => `
+                <div>
+                    <p class="text-[11px] font-bold uppercase text-slate-400 mb-2">${esc(cat)}</p>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        ${clubData.catalogo.filter(p => p.cat === cat).map(p => {
+                            const disp = disponivel(clubData, p);
+                            const precoSocio = Math.round(p.preco * (1 - pr.pct / 100));
+                            return `
+                            <button onclick="posAdd('${esc(p.id)}')" ${disp <= 0 ? 'disabled' : ''} class="text-left p-3 rounded-xl border text-xs transition ${disp <= 0 ? 'opacity-40 cursor-not-allowed' : 'hover:border-cfcBlue hover:bg-cfcLightBlue/40'}">
+                                <span class="block font-bold text-cfcDarkBlue">${esc(p.nome)}</span>
+                                <span class="block mt-0.5">${pr.pct > 0 ? `<s class="text-slate-400">${kz(p.preco)}</s> <strong class="text-green-700">${kz(precoSocio)}</strong>` : `<strong>${kz(p.preco)}</strong>`}</span>
+                                <span class="block text-[10px] ${disp <= 10 ? 'text-red-600 font-bold' : 'text-slate-500'}">${p.bancada ? 'Vagas' : 'Stock'}: ${disp}${disp <= 0 ? ' (esgotado)' : ''}</span>
+                            </button>`;
+                        }).join('')}
+                    </div>
+                </div>`).join('');
+        }
+
+        function posAdd(id) {
+            const p = clubData.catalogo.find(x => x.id === id);
+            const l = pos.cart.find(c => c.id === id);
+            if (l) { if (l.qtd + 1 > disponivel(clubData, p)) return showBoToast('Sem mais disponibilidade deste artigo.'); l.qtd++; }
+            else pos.cart.push({ id, qtd: 1 });
+            posRenderCart();
+        }
+        function posQty(id, delta) {
+            const l = pos.cart.find(c => c.id === id); if (!l) return;
+            l.qtd += delta;
+            if (l.qtd < 1) pos.cart = pos.cart.filter(c => c.id !== id);
+            posRenderCart();
+        }
+        function posRemove(id) { pos.cart = pos.cart.filter(c => c.id !== id); posRenderCart(); }
+
+        function posRenderCart() {
+            const pr = priceCart(clubData, pos.tipo, pos.socioId, pos.cart);
+            const pronto = pr.lines.length && !pr.erros.length && (pos.tipo !== 'socio' || pr.socio);
+            $('pos-cart').innerHTML = `
+                ${pr.lines.length ? `
+                <div class="divide-y text-xs">
+                    ${pr.lines.map(l => `
+                        <div class="py-2.5 flex items-center justify-between gap-2">
+                            <div class="min-w-0">
+                                <p class="font-semibold truncate">${esc(l.prod.nome)}</p>
+                                <p class="text-slate-500">${kz(l.prod.preco)} × ${l.qtd}${l.desc ? ` <span class="text-green-600">(−${kz(l.desc)})</span>` : ''}</p>
+                            </div>
+                            <div class="flex items-center space-x-1 flex-shrink-0">
+                                <button onclick="posQty('${esc(l.prod.id)}', -1)" aria-label="Menos" class="w-8 h-8 rounded border font-bold">−</button>
+                                <span class="w-6 text-center font-bold">${l.qtd}</span>
+                                <button onclick="posQty('${esc(l.prod.id)}', 1)" aria-label="Mais" class="w-8 h-8 rounded border font-bold">+</button>
+                                <button onclick="posRemove('${esc(l.prod.id)}')" aria-label="Remover" class="ml-1 w-8 h-8 text-red-500"><i class="fas fa-trash"></i></button>
+                            </div>
+                        </div>`).join('')}
+                </div>
+                <div class="text-xs space-y-1 pt-3 border-t">
+                    <div class="flex justify-between"><span>Subtotal</span><span>${kz(pr.bruto)}</span></div>
+                    <div class="flex justify-between text-green-700"><span>Desconto ${pr.pct ? `(${pr.pct}% sócio)` : ''}</span><span>− ${kz(pr.desconto)}</span></div>
+                    <div class="flex justify-between font-display text-xl text-cfcDarkBlue pt-1"><span>TOTAL</span><span>${kz(pr.total)}</span></div>
+                </div>
+                ${pr.erros.map(e => `<p class="text-[11px] text-red-600 font-bold">${esc(e)}</p>`).join('')}
+                <div class="pt-2">
+                    <label class="block text-[11px] font-bold text-slate-500 uppercase mb-1">Método de pagamento</label>
+                    <select onchange="pos.pag=this.value" class="w-full border rounded-lg px-3 py-2.5 text-xs">${PAGAMENTOS.map(p => `<option ${p === pos.pag ? 'selected' : ''}>${esc(p)}</option>`).join('')}</select>
+                </div>
+                <button onclick="posFinalizar()" ${pronto ? '' : 'disabled'} class="w-full mt-2 font-bold py-3.5 rounded-xl text-xs uppercase tracking-wider text-white ${pronto ? 'bg-cfcBlue hover:bg-cfcDarkBlue' : 'bg-slate-300 cursor-not-allowed'}">
+                    <i class="fas fa-check-circle mr-2"></i> Finalizar Venda
+                </button>
+                ${pos.tipo === 'socio' && !pr.socio ? '<p class="text-[11px] text-amber-700">Selecione o sócio para finalizar.</p>' : ''}
+                ` : '<p class="text-xs text-slate-400 text-center py-6"><i class="fas fa-shopping-cart text-2xl block mb-2"></i> Carrinho vazio. Toque num artigo para o adicionar.</p>'}
+            `;
+        }
+
+        function posFinalizar() {
+            let sale;
+            try {
+                sale = mutate(d => applySale(d, { tipo: pos.tipo, socioId: pos.socioId, cart: pos.cart, nome: pos.nome.trim(), tel: pos.tel.trim(), pag: pos.pag }));
+            } catch (err) {
+                clubData = loadClubData();
+                posRenderProducts(); posRenderCart();
+                return showBoToast(err.message, 'warn');
+            }
+            logAudit(`Registou venda ${sale.id} (${sale.tipoCliente}${sale.descontoPct ? ' com ' + sale.descontoPct + '% desc.' : ''}) — ${kz(sale.total)}`);
+            const keepTipo = pos.tipo, keepPag = pos.pag;
+            pos = newPos(); pos.tipo = keepTipo; pos.pag = keepPag;
+            $('pos-done').innerHTML = `
+                <div class="bg-green-50 border border-green-300 p-5 rounded-2xl flex flex-wrap items-center justify-between gap-3 fade-in">
+                    <div class="text-xs">
+                        <p class="font-bold text-green-800 text-sm"><i class="fas fa-check-circle mr-1"></i> Venda ${esc(sale.id)} registada — ${kz(sale.total)}</p>
+                        <p class="text-green-700">${esc(tipoLabel(sale))}${sale.desconto ? ` • desconto de ${kz(sale.desconto)}` : ''} • já disponível em Finanças.</p>
+                    </div>
+                    <div class="flex gap-2">
+                        <button onclick="printRecibo('${esc(sale.id)}')" class="bg-white border border-green-300 text-green-700 hover:bg-green-100 font-bold rounded-lg px-4 py-2 text-xs"><i class="fas fa-print mr-1"></i> Recibo</button>
+                        <button onclick="exportVendas([findVenda('${esc(sale.id)}')], 'CFC_Venda_${esc(sale.id)}', 'Venda ${esc(sale.id)}')" class="bg-green-600 hover:bg-green-700 text-white font-bold rounded-lg px-4 py-2 text-xs"><i class="fas fa-file-excel mr-1"></i> Excel</button>
+                    </div>
+                </div>`;
+            posRenderCustomer(); posRenderProducts(); posRenderCart(); posRenderRecent();
+        }
+
+        function posRenderRecent() {
+            $('pos-recent').innerHTML = salesTableHTML((clubData.vendas || []).slice(0, 8), 'Ainda não há vendas registadas.');
+        }
+
+        // ======================================================================
+        // 4. FINANÇAS & RECEITAS
+        // ======================================================================
+        let fin = { de: '', ate: '', tipo: 'todos', q: '' };
+
+        function finFiltered() {
+            return (clubData.vendas || []).filter(v =>
+                (!fin.de || v.data >= fin.de) && (!fin.ate || v.data <= fin.ate) &&
+                (fin.tipo === 'todos' || (fin.tipo === 'socio' && v.tipoCliente === 'Sócio') || (fin.tipo === 'nao-socio' && v.tipoCliente !== 'Sócio')) &&
+                (!fin.q || (v.id + ' ' + v.cliente + ' ' + v.socioId + ' ' + v.itens.map(i => i.produto).join(' ')).toLowerCase().includes(fin.q)));
+        }
+        function finPeriodo() { return (fin.de || fin.ate) ? `${fin.de ? fmtDate(fin.de) : 'início'} a ${fin.ate ? fmtDate(fin.ate) : 'hoje'}` : 'Todas as vendas'; }
+
         function renderBoFinancas(box) {
+            fin = { de: '', ate: '', tipo: 'todos', q: '' };
             box.innerHTML = `
                 <div class="fade-in space-y-6">
                     <div class="bg-white p-6 rounded-2xl shadow border-l-8 border-green-600">
                         <h2 class="font-display text-2xl font-bold text-cfcDarkBlue uppercase">Departamento Financeiro</h2>
                         <p class="text-xs text-slate-500">Controlo de receitas de bilheteira, quotas de sócios, patrocínios e loja oficial.</p>
                     </div>
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div class="bg-white p-5 rounded-xl shadow"><span class="text-xs text-slate-400 font-bold uppercase">Quotas de Sócios (Mês)</span><p class="font-display text-2xl font-bold text-cfcBlue mt-1">8.250.000 Kz</p></div>
-                        <div class="bg-white p-5 rounded-xl shadow"><span class="text-xs text-slate-400 font-bold uppercase">Receita Bilheteira</span><p class="font-display text-2xl font-bold text-green-600 mt-1">12.400.000 Kz</p></div>
-                        <div class="bg-white p-5 rounded-xl shadow"><span class="text-xs text-slate-400 font-bold uppercase">Contratos Patrocínio</span><p class="font-display text-2xl font-bold text-cfcDarkBlue mt-1">25.000.000 Kz</p></div>
+
+                    <div>
+                        <p class="text-[11px] font-bold uppercase text-slate-400 mb-2">Valores de referência (dados de demonstração)</p>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div class="bg-white p-5 rounded-xl shadow"><span class="text-xs text-slate-400 font-bold uppercase">Quotas de Sócios (Mês)</span><p class="font-display text-2xl font-bold text-cfcBlue mt-1">8.250.000 Kz</p></div>
+                            <div class="bg-white p-5 rounded-xl shadow"><span class="text-xs text-slate-400 font-bold uppercase">Receita Bilheteira</span><p class="font-display text-2xl font-bold text-green-600 mt-1">12.400.000 Kz</p></div>
+                            <div class="bg-white p-5 rounded-xl shadow"><span class="text-xs text-slate-400 font-bold uppercase">Contratos Patrocínio</span><p class="font-display text-2xl font-bold text-cfcDarkBlue mt-1">25.000.000 Kz</p></div>
+                        </div>
                     </div>
+
+                    <div class="bg-white p-5 rounded-2xl shadow space-y-3">
+                        <h3 class="font-display text-lg font-bold text-cfcDarkBlue uppercase"><i class="fas fa-shopping-bag text-cfcBlue mr-2"></i> Vendas da Loja (registo automático)</h3>
+                        <div class="flex flex-wrap gap-2 text-xs">
+                            <button onclick="finRange('hoje')" class="px-3 py-1.5 rounded-full bg-cfcLightBlue text-cfcDarkBlue font-bold hover:bg-blue-200">Hoje</button>
+                            <button onclick="finRange('semana')" class="px-3 py-1.5 rounded-full bg-cfcLightBlue text-cfcDarkBlue font-bold hover:bg-blue-200">Esta semana</button>
+                            <button onclick="finRange('mes')" class="px-3 py-1.5 rounded-full bg-cfcLightBlue text-cfcDarkBlue font-bold hover:bg-blue-200">Este mês</button>
+                            <button onclick="finRange('tudo')" class="px-3 py-1.5 rounded-full bg-slate-100 text-slate-600 font-bold hover:bg-slate-200">Tudo</button>
+                        </div>
+                        <div class="grid grid-cols-1 sm:grid-cols-5 gap-3 text-xs items-end">
+                            <label><span class="font-bold text-slate-600">De</span><input type="date" id="fin-de" onchange="finApply()" class="mt-1 w-full border rounded-lg px-3 py-2.5"></label>
+                            <label><span class="font-bold text-slate-600">Até</span><input type="date" id="fin-ate" onchange="finApply()" class="mt-1 w-full border rounded-lg px-3 py-2.5"></label>
+                            <label><span class="font-bold text-slate-600">Cliente</span>
+                                <select id="fin-tipo" onchange="finApply()" class="mt-1 w-full border rounded-lg px-3 py-2.5"><option value="todos">Todos</option><option value="socio">Apenas sócios</option><option value="nao-socio">Apenas não sócios</option></select></label>
+                            <label><span class="font-bold text-slate-600">Procurar</span><input type="search" id="fin-q" oninput="finApply()" placeholder="Nº, cliente, artigo..." class="mt-1 w-full border rounded-lg px-3 py-2.5"></label>
+                            <button onclick="finExport()" class="bg-green-600 hover:bg-green-700 text-white font-bold rounded-lg px-4 py-2.5"><i class="fas fa-file-excel mr-1"></i> Exportar Excel</button>
+                        </div>
+                    </div>
+
+                    <div id="fin-results" class="space-y-6"></div>
                 </div>
+            `;
+            finRender();
+        }
+
+        function finRange(kind) {
+            const now = new Date(); let de = '', ate = '';
+            if (kind === 'hoje') { de = ate = todayISO(); }
+            else if (kind === 'semana') { const d = new Date(now); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); de = isoOf(d); ate = todayISO(); }
+            else if (kind === 'mes') { de = isoOf(new Date(now.getFullYear(), now.getMonth(), 1)); ate = todayISO(); }
+            $('fin-de').value = de; $('fin-ate').value = ate;
+            finApply();
+        }
+        function finApply() {
+            fin.de = $('fin-de').value;
+            fin.ate = $('fin-ate').value;
+            fin.tipo = $('fin-tipo').value;
+            fin.q = $('fin-q').value.trim().toLowerCase();
+            finRender();
+        }
+        function finExport() { exportVendas(finFiltered(), 'CFC_Vendas_Loja_' + todayISO(), finPeriodo()); }
+
+        function finRender() {
+            const all = finFiltered();
+            const ok = all.filter(v => v.estado !== 'Anulada');
+            const agg = list => ({ n: list.length, total: list.reduce((s, v) => s + v.total, 0), desc: list.reduce((s, v) => s + v.desconto, 0) });
+            const socCom = agg(ok.filter(v => v.tipoCliente === 'Sócio' && v.descontoPct > 0));
+            const socSem = agg(ok.filter(v => v.tipoCliente === 'Sócio' && !(v.descontoPct > 0)));
+            const nao = agg(ok.filter(v => v.tipoCliente !== 'Sócio'));
+            const tot = agg(ok);
+            const porCat = {};
+            ok.forEach(v => v.itens.forEach(it => { const c = porCat[it.categoria] = porCat[it.categoria] || { qtd: 0, total: 0 }; c.qtd += it.qtd; c.total += it.total; }));
+            $('fin-results').innerHTML = `
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div class="bg-white p-5 rounded-xl shadow border-l-4 border-cfcBlue"><span class="text-xs text-slate-400 font-bold uppercase">Total Líquido</span><p class="font-display text-2xl font-bold text-slate-800 mt-1">${kz(tot.total)}</p><p class="text-[11px] text-slate-500">${tot.n} venda(s)</p></div>
+                    <div class="bg-white p-5 rounded-xl shadow border-l-4 border-green-500"><span class="text-xs text-slate-400 font-bold uppercase">Sócios (com desconto)</span><p class="font-display text-2xl font-bold text-green-700 mt-1">${kz(socCom.total)}</p><p class="text-[11px] text-slate-500">${socCom.n} venda(s) • desconto dado: ${kz(socCom.desc)}</p></div>
+                    <div class="bg-white p-5 rounded-xl shadow border-l-4 border-slate-400"><span class="text-xs text-slate-400 font-bold uppercase">Não sócios (preço normal)</span><p class="font-display text-2xl font-bold text-slate-700 mt-1">${kz(nao.total)}</p><p class="text-[11px] text-slate-500">${nao.n} venda(s)</p></div>
+                    <div class="bg-white p-5 rounded-xl shadow border-l-4 border-amber-400"><span class="text-xs text-slate-400 font-bold uppercase">Sócios sem desconto</span><p class="font-display text-2xl font-bold text-amber-700 mt-1">${kz(socSem.total)}</p><p class="text-[11px] text-slate-500">${socSem.n} venda(s) (quotas pendentes)</p></div>
+                </div>
+                <div class="bg-white p-4 rounded-2xl shadow text-xs">
+                    <p class="font-bold uppercase text-slate-500 mb-2">Por categoria de artigo</p>
+                    <div class="flex flex-wrap gap-2">${Object.keys(porCat).map(k => `<span class="bg-cfcLightBlue text-cfcDarkBlue font-bold px-3 py-1.5 rounded-lg">${esc(k)}: ${porCat[k].qtd} un. • ${kz(porCat[k].total)}</span>`).join('') || '<span class="text-slate-400">Sem vendas no período.</span>'}</div>
+                </div>
+                <div class="bg-white rounded-2xl shadow overflow-x-auto">${salesTableHTML(all, 'Sem vendas para os filtros escolhidos.')}</div>
             `;
         }
 
-        // ==========================================
-        // 4. GESTÃO OPERACIONAL & NOTÍCIAS
-        // ==========================================
+        // ======================================================================
+        // 5. GESTÃO OPERACIONAL & NOTÍCIAS
+        // ======================================================================
         function renderBoGestao(box) {
             box.innerHTML = `
                 <div class="fade-in space-y-6">
@@ -457,23 +1580,20 @@
                     </div>
                     <form onsubmit="publishNews(event)" class="bg-white p-6 rounded-2xl shadow space-y-4">
                         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            <input type="text" id="news-title" required placeholder="Título da notícia..." class="md:col-span-2 border rounded-lg px-3 py-2 text-xs">
-                            <select id="news-cat" class="border rounded-lg px-3 py-2 text-xs">
-                                <option>Equipa Principal</option>
-                                <option>Transferências</option>
-                                <option>Formação</option>
-                                <option>Modalidades</option>
+                            <input type="text" id="news-title" required placeholder="Título da notícia..." class="md:col-span-2 border rounded-lg px-3 py-2.5 text-xs">
+                            <select id="news-cat" class="border rounded-lg px-3 py-2.5 text-xs">
+                                <option>Equipa Principal</option><option>Transferências</option><option>Formação</option><option>Modalidades</option>
                             </select>
                         </div>
                         <button type="submit" class="bg-cfcBlue text-white font-bold px-5 py-2.5 rounded-lg text-xs hover:bg-cfcDarkBlue">Publicar no Site</button>
                     </form>
                     <div class="bg-white p-6 rounded-2xl shadow divide-y text-xs">
                         ${(clubData.noticias || []).map((n, i) => `
-                            <div class="py-3 flex justify-between items-center">
-                                <div><span class="font-bold text-cfcBlue">[${n.cat}]</span> <strong>${n.titulo}</strong> <span class="text-slate-400">(${n.data})</span></div>
+                            <div class="py-3 flex justify-between items-center gap-3">
+                                <div><span class="font-bold text-cfcBlue">[${esc(n.cat)}]</span> <strong>${esc(n.titulo)}</strong> <span class="text-slate-400">(${esc(n.data)})</span></div>
                                 <button onclick="deleteNews(${i})" class="text-red-600 font-bold hover:underline">Remover</button>
                             </div>
-                        `).join('')}
+                        `).join('') || '<p class="text-slate-400 text-center py-4"><i class="fas fa-newspaper text-2xl block mb-2"></i>Ainda não há notícias. Escreva a primeira acima.</p>'}
                     </div>
                 </div>
             `;
@@ -481,50 +1601,76 @@
 
         function publishNews(e) {
             e.preventDefault();
-            const titulo = document.getElementById('news-title').value.trim();
-            const cat = document.getElementById('news-cat').value;
-            clubData.noticias.unshift({
-                id: Date.now(),
-                titulo,
-                data: new Date().toISOString().slice(0, 10),
-                cat,
-                img: "https://images.unsplash.com/photo-1508098682722-e99c43a406b2?auto=format&fit=crop&w=600&q=80"
-            });
-            saveClubData();
+            const titulo = $('news-title').value.trim();
+            const cat = $('news-cat').value;
+            mutate(d => d.noticias.unshift({
+                id: Date.now(), titulo, data: todayISO(), cat,
+                img: 'https://images.unsplash.com/photo-1508098682722-e99c43a406b2?auto=format&fit=crop&w=600&q=80'
+            }));
             logAudit(`Publicou notícia: "${titulo}"`);
-            showBoToast("Notícia publicada no site!");
+            showBoToast('Notícia publicada no site!');
             selectBoTab('gestao');
         }
 
-        function deleteNews(idx) {
-            const removed = clubData.noticias.splice(idx, 1)[0];
-            saveClubData();
-            logAudit(`Removeu notícia: "${removed.titulo}"`);
+        async function deleteNews(idx) {
+            const n = clubData.noticias[idx];
+            if (!n) return;
+            if (!(await uiConfirm('Remover notícia', `Remover "${n.titulo}" do site?`, { danger: true, okText: 'Remover' }))) return;
+            mutate(d => d.noticias.splice(idx, 1));
+            logAudit(`Removeu notícia: "${n.titulo}"`);
             selectBoTab('gestao');
         }
 
-        // ==========================================
-        // 5. BILHETERIA
-        // ==========================================
+        // ======================================================================
+        // 6. BILHETERIA
+        // ======================================================================
         function renderBoBilheteria(box) {
+            const st = clubData.bancadas;
+            const keys = Object.keys(st);
+            const ok = (clubData.vendas || []).filter(v => v.estado !== 'Anulada');
+            const bilhetesLoja = ok.reduce((s, v) => s + v.itens.filter(i => i.categoria === 'Bilhetes').reduce((a, i) => a + i.qtd, 0), 0);
             box.innerHTML = `
                 <div class="fade-in space-y-6">
                     <div class="bg-white p-6 rounded-2xl shadow border-l-8 border-cfcBlue">
                         <h2 class="font-display text-2xl font-bold text-cfcDarkBlue uppercase">Gestão de Bilheteria • Estádio Nacional do Teca</h2>
-                        <p class="text-xs text-slate-500">Controlo de lotes e emissão de ingressos por bancada.</p>
+                        <p class="text-xs text-slate-500">Lotação por bancada. Os bilhetes vendidos na Loja descontam automaticamente das vagas (e voltam se a venda for anulada). Bilhetes vendidos pela loja do back-office: <strong>${bilhetesLoja}</strong></p>
                     </div>
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
-                        <div class="bg-white p-5 rounded-xl shadow"><h4 class="font-bold text-sm">Bancada Geral</h4><p class="text-slate-500 mt-1">Vendidos: 24.500 / 30.000</p><div class="w-full bg-slate-100 h-2 rounded mt-2"><div class="bg-cfcBlue h-2 rounded" style="width:81%"></div></div></div>
-                        <div class="bg-white p-5 rounded-xl shadow"><h4 class="font-bold text-sm">Bancada Central</h4><p class="text-slate-500 mt-1">Vendidos: 6.200 / 12.000</p><div class="w-full bg-slate-100 h-2 rounded mt-2"><div class="bg-cfcAccent h-2 rounded" style="width:52%"></div></div></div>
-                        <div class="bg-white p-5 rounded-xl shadow"><h4 class="font-bold text-sm">Camarotes VIP</h4><p class="text-slate-500 mt-1">Vendidos: 750 / 1.000</p><div class="w-full bg-slate-100 h-2 rounded mt-2"><div class="bg-green-600 h-2 rounded" style="width:75%"></div></div></div>
+                        ${keys.map(k => {
+                            const b = st[k]; const pct = Math.min(100, Math.round(b.vendidos / (b.cap || 1) * 100));
+                            return `<div class="bg-white p-5 rounded-xl shadow"><h4 class="font-bold text-sm">${esc(b.nome)}</h4><p class="text-slate-500 mt-1">Vendidos: ${b.vendidos.toLocaleString('pt-PT')} / ${b.cap.toLocaleString('pt-PT')} (${pct}%)</p><div class="w-full bg-slate-100 h-2 rounded mt-2"><div class="${pct >= 95 ? 'bg-red-600' : pct >= 90 ? 'bg-amber-500' : 'bg-cfcBlue'} h-2 rounded" style="width:${pct}%"></div></div><p class="text-[11px] mt-1 ${pct >= 90 ? 'text-red-600 font-bold' : 'text-slate-400'}">${(b.cap - b.vendidos).toLocaleString('pt-PT')} vagas livres</p></div>`;
+                        }).join('')}
                     </div>
+                    <form onsubmit="saveBilheteria(event)" class="bg-white p-6 rounded-2xl shadow space-y-3 text-xs">
+                        <h3 class="font-bold text-sm uppercase text-cfcDarkBlue">Configurar jogo e lotação</h3>
+                        <input type="text" id="bil-jogo" value="${esc(clubData.config.proximoJogo)}" placeholder="Próximo jogo (ex.: CFC vs Petro, 07/12)" class="w-full border rounded-lg px-3 py-2.5">
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                            ${keys.map(k => `<label><span class="font-bold text-slate-600">Capacidade – ${esc(st[k].nome)}</span><input type="number" min="0" id="bil-cap-${k}" value="${st[k].cap}" class="mt-1 w-full border rounded-lg px-3 py-2.5"></label>`).join('')}
+                        </div>
+                        <button type="submit" class="bg-cfcBlue hover:bg-cfcDarkBlue text-white font-bold px-5 py-2.5 rounded-lg">Guardar</button>
+                    </form>
                 </div>
             `;
         }
 
-        // ==========================================
-        // 6. MULTIMÉDIA (ADICIONAR FOTOS, VÍDEOS E CARROSSÉIS)
-        // ==========================================
+        function saveBilheteria(e) {
+            e.preventDefault();
+            const jogo = $('bil-jogo').value.trim() || 'CFC – próximo jogo em casa';
+            const caps = {};
+            for (const k of Object.keys(clubData.bancadas)) {
+                const v = Math.round(Number($('bil-cap-' + k).value));
+                if (!(v >= clubData.bancadas[k].vendidos)) return showBoToast(`A capacidade de "${clubData.bancadas[k].nome}" não pode ser inferior aos bilhetes já vendidos.`);
+                caps[k] = v;
+            }
+            mutate(d => { d.config.proximoJogo = jogo; Object.keys(caps).forEach(k => d.bancadas[k].cap = caps[k]); });
+            logAudit(`Atualizou lotação/jogo: "${jogo}"`);
+            showBoToast('Bilheteria atualizada.');
+            selectBoTab('bilheteria');
+        }
+
+        // ======================================================================
+        // 7. MULTIMÉDIA
+        // ======================================================================
         function renderBoMultimedia(box) {
             box.innerHTML = `
                 <div class="fade-in space-y-6">
@@ -535,81 +1681,69 @@
 
                     <form onsubmit="addMediaItem(event)" class="bg-white p-6 rounded-2xl shadow space-y-4 text-xs">
                         <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
-                            <select id="m-tipo" onchange="toggleMediaInputs()" class="border rounded-lg px-3 py-2 font-bold">
-                                <option value="foto">Fotografia Única</option>
-                                <option value="carrossel">Carrossel de Imagens</option>
-                                <option value="video">Vídeo</option>
+                            <select id="m-tipo" onchange="toggleMediaInputs()" class="border rounded-lg px-3 py-2.5 font-bold">
+                                <option value="foto">Fotografia Única</option><option value="carrossel">Carrossel de Imagens</option><option value="video">Vídeo</option>
                             </select>
-                            <input type="text" id="m-titulo" required placeholder="Título do registo..." class="md:col-span-2 border rounded-lg px-3 py-2">
-                            <input type="date" id="m-data" required value="${new Date().toISOString().slice(0, 10)}" class="border rounded-lg px-3 py-2">
+                            <input type="text" id="m-titulo" required placeholder="Título do registo..." class="md:col-span-2 border rounded-lg px-3 py-2.5">
+                            <input type="date" id="m-data" required value="${todayISO()}" class="border rounded-lg px-3 py-2.5">
                         </div>
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-                            <input type="text" id="m-cat" value="Equipa Principal" placeholder="Categoria" class="border rounded-lg px-3 py-2">
-                            <input type="text" id="m-urls" required placeholder="URL da imagem (para Carrossel, separe várias URLs por vírgula)" class="border rounded-lg px-3 py-2">
+                            <input type="text" id="m-cat" value="Equipa Principal" placeholder="Categoria" class="border rounded-lg px-3 py-2.5">
+                            <input type="text" id="m-urls" required placeholder="URL da imagem (para Carrossel, separe várias URLs por vírgula)" class="border rounded-lg px-3 py-2.5">
                         </div>
                         <div id="m-video-extra" class="hidden">
-                            <input type="text" id="m-video-url" placeholder="URL do ficheiro de vídeo (.mp4)" class="w-full border rounded-lg px-3 py-2">
+                            <input type="text" id="m-video-url" placeholder="URL do ficheiro de vídeo (.mp4)" class="w-full border rounded-lg px-3 py-2.5">
                         </div>
-                        <input type="text" id="m-desc" required placeholder="Descrição breve..." class="w-full border rounded-lg px-3 py-2">
+                        <input type="text" id="m-desc" required placeholder="Descrição breve..." class="w-full border rounded-lg px-3 py-2.5">
                         <button type="submit" class="bg-cfcBlue text-white font-bold px-5 py-2.5 rounded-lg hover:bg-cfcDarkBlue">Publicar na Galeria Multimédia</button>
                     </form>
 
                     <div class="bg-white p-6 rounded-2xl shadow divide-y text-xs">
                         ${(clubData.multimedia || []).map((m, i) => `
                             <div class="py-3 flex justify-between items-center gap-3">
-                                <div>
-                                    <span class="uppercase font-bold text-cfcBlue">[${m.tipo}]</span>
-                                    <strong>${m.titulo}</strong>
-                                    <span class="text-slate-400 ml-2">${m.data}</span>
-                                </div>
+                                <div><span class="uppercase font-bold text-cfcBlue">[${esc(m.tipo)}]</span> <strong>${esc(m.titulo)}</strong> <span class="text-slate-400 ml-2">${esc(m.data)}</span></div>
                                 <button onclick="deleteMedia(${i})" class="text-red-600 font-bold hover:underline">Excluir</button>
                             </div>
-                        `).join('')}
+                        `).join('') || '<p class="text-slate-400 text-center py-4"><i class="fas fa-photo-video text-2xl block mb-2"></i>Ainda não há itens multimédia.</p>'}
                     </div>
                 </div>
             `;
         }
 
-        function toggleMediaInputs() {
-            const tipo = document.getElementById('m-tipo').value;
-            document.getElementById('m-video-extra').classList.toggle('hidden', tipo !== 'video');
-        }
+        function toggleMediaInputs() { $('m-video-extra').classList.toggle('hidden', $('m-tipo').value !== 'video'); }
 
         function addMediaItem(e) {
             e.preventDefault();
-            const tipo = document.getElementById('m-tipo').value;
-            const titulo = document.getElementById('m-titulo').value.trim();
-            const data = document.getElementById('m-data').value;
-            const categoria = document.getElementById('m-cat').value.trim();
-            const urls = document.getElementById('m-urls').value.split(',').map(u => u.trim()).filter(Boolean);
-            const descricao = document.getElementById('m-desc').value.trim();
-
+            const tipo = $('m-tipo').value;
+            const titulo = $('m-titulo').value.trim();
+            const data = $('m-data').value;
+            const categoria = $('m-cat').value.trim();
+            const urls = $('m-urls').value.split(',').map(u => u.trim()).filter(Boolean);
+            const descricao = $('m-desc').value.trim();
             const item = { id: 'midia-' + Date.now(), tipo, titulo, data, categoria, descricao };
             if (tipo === 'carrossel') item.imagens = urls;
             else if (tipo === 'video') {
                 item.capa = urls[0];
-                item.videoUrl = document.getElementById('m-video-url').value.trim() || 'https://www.w3schools.com/html/mov_bbb.mp4';
-            } else {
-                item.imagem = urls[0];
-            }
-
-            clubData.multimedia.unshift(item);
-            saveClubData();
+                item.videoUrl = $('m-video-url').value.trim() || 'https://www.w3schools.com/html/mov_bbb.mp4';
+            } else item.imagem = urls[0];
+            mutate(d => d.multimedia.unshift(item));
             logAudit(`Publicou item multimédia (${tipo}): "${titulo}"`);
-            showBoToast("Item multimédia adicionado!");
+            showBoToast('Item multimédia adicionado!');
             selectBoTab('multimedia');
         }
 
-        function deleteMedia(idx) {
-            const rem = clubData.multimedia.splice(idx, 1)[0];
-            saveClubData();
-            logAudit(`Removeu item multimédia: "${rem.titulo}"`);
+        async function deleteMedia(idx) {
+            const m = clubData.multimedia[idx];
+            if (!m) return;
+            if (!(await uiConfirm('Excluir item', `Excluir "${m.titulo}" da galeria?`, { danger: true, okText: 'Excluir' }))) return;
+            mutate(d => d.multimedia.splice(idx, 1));
+            logAudit(`Removeu item multimédia: "${m.titulo}"`);
             selectBoTab('multimedia');
         }
 
-        // ==========================================
-        // 7. PATROCINADORES & LOGOTIPOS
-        // ==========================================
+        // ======================================================================
+        // 8. PATROCINADORES
+        // ======================================================================
         function renderBoPatrocinadores(box) {
             box.innerHTML = `
                 <div class="fade-in space-y-6">
@@ -618,23 +1752,21 @@
                         <p class="text-xs text-slate-500">Adicione o caminho da imagem do patrocinador (ex.: <code>assets/patrocinadores/logo.png</code>) ou URL externa.</p>
                     </div>
                     <form onsubmit="addSponsor(event)" class="bg-white p-6 rounded-2xl shadow grid grid-cols-1 md:grid-cols-5 gap-3 text-xs">
-                        <input type="text" id="pat-nome" required placeholder="Nome da Empresa" class="border rounded-lg px-3 py-2">
-                        <select id="pat-nivel" class="border rounded-lg px-3 py-2">
-                            <option>Patrocinador Principal</option>
-                            <option>Patrocinador Oficial</option>
-                            <option>Parceiro Institucional</option>
+                        <input type="text" id="pat-nome" required placeholder="Nome da Empresa" class="border rounded-lg px-3 py-2.5">
+                        <select id="pat-nivel" class="border rounded-lg px-3 py-2.5">
+                            <option>Patrocinador Principal</option><option>Patrocinador Oficial</option><option>Parceiro Institucional</option>
                         </select>
-                        <input type="text" id="pat-setor" required placeholder="Setor (ex: Banca)" class="border rounded-lg px-3 py-2">
-                        <input type="text" id="pat-logo" placeholder="Caminho/URL da Imagem" class="border rounded-lg px-3 py-2">
-                        <button type="submit" class="bg-cfcBlue text-white font-bold rounded-lg px-4 py-2 hover:bg-cfcDarkBlue">Adicionar</button>
+                        <input type="text" id="pat-setor" required placeholder="Setor (ex: Banca)" class="border rounded-lg px-3 py-2.5">
+                        <input type="text" id="pat-logo" placeholder="Caminho/URL da Imagem" class="border rounded-lg px-3 py-2.5">
+                        <button type="submit" class="bg-cfcBlue text-white font-bold rounded-lg px-4 py-2.5 hover:bg-cfcDarkBlue">Adicionar</button>
                     </form>
                     <div class="bg-white p-6 rounded-2xl shadow divide-y text-xs">
                         ${(clubData.patrocinadores || []).map((p, i) => `
-                            <div class="py-3 flex justify-between items-center">
-                                <div><strong>${p.nome}</strong> <span class="text-cfcBlue font-bold">(${p.nivel})</span> — <span class="text-slate-400">${p.logo || 'Sem imagem definida (usa sigla)'}</span></div>
+                            <div class="py-3 flex justify-between items-center gap-3">
+                                <div><strong>${esc(p.nome)}</strong> <span class="text-cfcBlue font-bold">(${esc(p.nivel)})</span> — <span class="text-slate-400">${esc(p.logo || 'Sem imagem definida (usa sigla)')}</span></div>
                                 <button onclick="deleteSponsor(${i})" class="text-red-600 font-bold hover:underline">Remover</button>
                             </div>
-                        `).join('')}
+                        `).join('') || '<p class="text-slate-400 text-center py-4"><i class="fas fa-handshake text-2xl block mb-2"></i>Ainda não há patrocinadores.</p>'}
                     </div>
                 </div>
             `;
@@ -642,58 +1774,54 @@
 
         function addSponsor(e) {
             e.preventDefault();
-            const nome = document.getElementById('pat-nome').value.trim();
-            const nivel = document.getElementById('pat-nivel').value;
-            const setor = document.getElementById('pat-setor').value.trim();
-            const logo = document.getElementById('pat-logo').value.trim();
-            clubData.patrocinadores.push({
-                id: 'pat-' + Date.now(),
-                nome, nivel, setor, logo,
-                sigla: nome.slice(0, 10).toUpperCase(),
-                cor: '#0047AB',
-                website: '#'
-            });
-            saveClubData();
+            const nome = $('pat-nome').value.trim();
+            const nivel = $('pat-nivel').value;
+            const setor = $('pat-setor').value.trim();
+            const logo = $('pat-logo').value.trim();
+            mutate(d => d.patrocinadores.push({ id: 'pat-' + Date.now(), nome, nivel, setor, logo, sigla: nome.slice(0, 10).toUpperCase(), cor: '#0047AB', website: '#' }));
             logAudit(`Adicionou patrocinador: "${nome}"`);
-            showBoToast("Patrocinador adicionado!");
+            showBoToast('Patrocinador adicionado!');
             selectBoTab('patrocinadores');
         }
 
-        function deleteSponsor(idx) {
-            const rem = clubData.patrocinadores.splice(idx, 1)[0];
-            saveClubData();
-            logAudit(`Removeu patrocinador: "${rem.nome}"`);
+        async function deleteSponsor(idx) {
+            const p = clubData.patrocinadores[idx];
+            if (!p) return;
+            if (!(await uiConfirm('Remover patrocinador', `Remover "${p.nome}"?`, { danger: true, okText: 'Remover' }))) return;
+            mutate(d => d.patrocinadores.splice(idx, 1));
+            logAudit(`Removeu patrocinador: "${p.nome}"`);
             selectBoTab('patrocinadores');
         }
 
-        // ==========================================
-        // 8. MENSAGENS RECEBIDAS PELO FORMULÁRIO DE CONTACTOS
-        // ==========================================
+        // ======================================================================
+        // 9. MENSAGENS DE CONTACTO
+        // ======================================================================
+        let ctOnlyPending = false;
         function renderBoContactos(box) {
             const msgs = clubData.mensagensContacto || [];
+            const pend = msgs.filter(m => m.estado !== 'Respondida').length;
+            const list = msgs.map((m, i) => ({ m, i })).filter(x => !ctOnlyPending || x.m.estado !== 'Respondida');
             box.innerHTML = `
                 <div class="fade-in space-y-6">
-                    <div class="bg-white p-6 rounded-2xl shadow border-l-8 border-cfcAccent">
-                        <h2 class="font-display text-2xl font-bold text-cfcDarkBlue uppercase">Mensagens de Contacto por Departamento</h2>
-                        <p class="text-xs text-slate-500">Mensagens enviadas pelo site público encaminhadas pelo código do destinatário.</p>
+                    <div class="bg-white p-6 rounded-2xl shadow border-l-8 border-cfcAccent flex flex-wrap justify-between items-center gap-3">
+                        <div>
+                            <h2 class="font-display text-2xl font-bold text-cfcDarkBlue uppercase">Mensagens de Contacto por Departamento</h2>
+                            <p class="text-xs text-slate-500">Mensagens enviadas pelo site público. <strong>${pend}</strong> por responder.</p>
+                        </div>
+                        <button onclick="ctOnlyPending=!ctOnlyPending;selectBoTab('contactos')" class="px-4 py-2.5 rounded-lg text-xs font-bold ${ctOnlyPending ? 'bg-cfcBlue text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}"><i class="fas fa-filter mr-1"></i> ${ctOnlyPending ? 'A mostrar só por responder' : 'Mostrar só por responder'}</button>
                     </div>
                     <div class="space-y-3">
-                        ${msgs.length === 0 ? '<div class="bg-white p-8 rounded-2xl shadow text-center text-xs text-slate-400">Nenhuma mensagem recebida ainda.</div>' : msgs.map((m, i) => `
+                        ${list.length === 0 ? `<div class="bg-white p-8 rounded-2xl shadow text-center text-xs text-slate-400"><i class="fas fa-inbox text-2xl block mb-2"></i>${msgs.length ? 'Nenhuma mensagem por responder. Bom trabalho!' : 'Nenhuma mensagem recebida ainda.'}</div>` : list.map(({ m, i }) => `
                             <div class="bg-white p-5 rounded-xl shadow border-l-4 ${m.estado === 'Respondida' ? 'border-green-500' : 'border-cfcBlue'} text-xs space-y-2">
                                 <div class="flex flex-wrap justify-between items-center gap-2">
-                                    <div>
-                                        <span class="font-bold text-cfcBlue">#${m.protocolo}</span> •
-                                        <span class="bg-cfcLightBlue text-cfcDarkBlue font-bold px-2 py-0.5 rounded">${m.deptNome}</span>
-                                    </div>
-                                    <span class="text-slate-400">${m.data}</span>
+                                    <div><span class="font-bold text-cfcBlue">#${esc(m.protocolo)}</span> • <span class="bg-cfcLightBlue text-cfcDarkBlue font-bold px-2 py-0.5 rounded">${esc(m.deptNome)}</span></div>
+                                    <span class="text-slate-400">${esc(m.data)}</span>
                                 </div>
-                                <p class="font-bold text-sm text-slate-800">${m.assunto}</p>
-                                <p class="text-slate-600">${m.mensagem}</p>
-                                <div class="pt-2 border-t flex justify-between items-center text-[11px]">
-                                    <span>Remetente: <strong>${m.nome}</strong> (${m.respostaPara})</span>
-                                    <button onclick="markMsgAnswered(${i})" class="font-bold ${m.estado === 'Respondida' ? 'text-green-600' : 'text-cfcBlue hover:underline'}">
-                                        ${m.estado === 'Respondida' ? '✓ Respondida' : 'Marcar como Respondida'}
-                                    </button>
+                                <p class="font-bold text-sm text-slate-800">${esc(m.assunto)}</p>
+                                <p class="text-slate-600">${esc(m.mensagem)}</p>
+                                <div class="pt-2 border-t flex flex-wrap justify-between items-center gap-2 text-[11px]">
+                                    <span>Remetente: <strong>${esc(m.nome)}</strong> (${esc(m.respostaPara)})</span>
+                                    <button onclick="markMsgAnswered(${i})" class="font-bold ${m.estado === 'Respondida' ? 'text-green-600' : 'text-cfcBlue hover:underline'}">${m.estado === 'Respondida' ? '✓ Respondida' : 'Marcar como Respondida'}</button>
                                 </div>
                             </div>
                         `).join('')}
@@ -703,71 +1831,45 @@
         }
 
         function markMsgAnswered(idx) {
-            clubData.mensagensContacto[idx].estado = 'Respondida';
-            saveClubData();
-            logAudit(`Marcou mensagem #${clubData.mensagensContacto[idx].protocolo} como respondida`);
+            let proto = '';
+            mutate(d => { if (d.mensagensContacto[idx]) { d.mensagensContacto[idx].estado = 'Respondida'; proto = d.mensagensContacto[idx].protocolo; } });
+            logAudit(`Marcou mensagem #${proto} como respondida`);
             selectBoTab('contactos');
         }
 
-        // ==========================================
-        // 9. ADMINISTRAÇÃO DE UTILIZADORES & PERMISSÕES GRANULARES (EXCLUSIVO ADMIN)
-        // ==========================================
+        // ======================================================================
+        // 10. ADMINISTRAÇÃO DE UTILIZADORES & PERMISSÕES (EXCLUSIVO ADMIN)
+        // ======================================================================
         function renderBoUsuarios(box) {
-            if (!currentUser.isAdmin) {
-                box.innerHTML = `<div class="bg-red-50 text-red-700 p-6 rounded-xl font-bold text-xs">Acesso restrito ao Administrador Geral.</div>`;
-                return;
-            }
-
+            const assignable = ALL_PERMISSIONS.filter(p => !ADMIN_ONLY.includes(p.id));
             box.innerHTML = `
                 <div class="fade-in space-y-6">
                     <div class="bg-cfcDarkBlue text-white p-6 rounded-2xl shadow-lg border-b-4 border-cfcAccent">
                         <h2 class="font-display text-2xl font-bold uppercase">Administração de Utilizadores & Permissões por Área</h2>
-                        <p class="text-xs text-blue-200 mt-1">Crie novos utilizadores e defina exatamente quais áreas cada utilizador pode ver e gerir (ex.: apenas Sócios, apenas Finanças, apenas Bilheteria ou Gestão).</p>
+                        <p class="text-xs text-blue-200 mt-1">Crie novos utilizadores e defina exatamente quais áreas cada utilizador pode ver e gerir (ex.: apenas Sócios, Loja, Finanças ou Bilheteria).</p>
                     </div>
 
-                    <!-- FORMULÁRIO PARA CRIAR NOVO UTILIZADOR COM PERMISSÕES ESPECÍFICAS -->
                     <form onsubmit="createNewBackofficeUser(event)" class="bg-white p-6 rounded-2xl shadow space-y-4 text-xs">
-                        <h3 class="font-display text-lg font-bold text-cfcDarkBlue uppercase border-b pb-2">
-                            <i class="fas fa-user-plus text-cfcBlue mr-2"></i> Adicionar Novo Utilizador
-                        </h3>
+                        <h3 class="font-display text-lg font-bold text-cfcDarkBlue uppercase border-b pb-2"><i class="fas fa-user-plus text-cfcBlue mr-2"></i> Adicionar Novo Utilizador</h3>
                         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                            <div>
-                                <label class="block font-bold text-slate-600 mb-1">Nome Completo *</label>
-                                <input type="text" id="new-u-name" required placeholder="Ex: Pedro Neto" class="w-full border rounded-lg px-3 py-2">
-                            </div>
-                            <div>
-                                <label class="block font-bold text-slate-600 mb-1">E-mail de Acesso *</label>
-                                <input type="email" id="new-u-email" required placeholder="pedro@carlosfc.ao" class="w-full border rounded-lg px-3 py-2">
-                            </div>
-                            <div>
-                                <label class="block font-bold text-slate-600 mb-1">Palavra-Passe *</label>
-                                <input type="text" id="new-u-pass" required value="cfc2026" class="w-full border rounded-lg px-3 py-2">
-                            </div>
-                            <div>
-                                <label class="block font-bold text-slate-600 mb-1">Cargo / Função *</label>
-                                <input type="text" id="new-u-role" required placeholder="Ex: Técnico de Bilheteria" class="w-full border rounded-lg px-3 py-2">
-                            </div>
+                            <div><label class="block font-bold text-slate-600 mb-1">Nome Completo *</label><input type="text" id="new-u-name" required placeholder="Ex: Pedro Neto" class="w-full border rounded-lg px-3 py-2.5"></div>
+                            <div><label class="block font-bold text-slate-600 mb-1">E-mail de Acesso *</label><input type="email" id="new-u-email" required placeholder="pedro@carlosfc.ao" class="w-full border rounded-lg px-3 py-2.5"></div>
+                            <div><label class="block font-bold text-slate-600 mb-1">Palavra-Passe * (mín. 6)</label><input type="text" id="new-u-pass" required minlength="6" value="cfc2026" class="w-full border rounded-lg px-3 py-2.5"></div>
+                            <div><label class="block font-bold text-slate-600 mb-1">Cargo / Função *</label><input type="text" id="new-u-role" required placeholder="Ex: Técnico de Bilheteria" class="w-full border rounded-lg px-3 py-2.5"></div>
                         </div>
-
                         <div>
                             <label class="block font-bold text-slate-700 uppercase mb-2">Selecione as Áreas Autorizadas para este Utilizador:</label>
                             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 bg-slate-50 p-4 rounded-xl border border-slate-200">
-                                ${ALL_PERMISSIONS.filter(p => p.id !== 'usuarios').map(p => `
+                                ${assignable.map(p => `
                                     <label class="flex items-center space-x-2.5 bg-white p-2.5 rounded-lg border border-slate-200 cursor-pointer hover:border-cfcBlue">
                                         <input type="checkbox" name="new-u-perms" value="${p.id}" class="rounded text-cfcBlue focus:ring-cfcBlue">
-                                        <i class="fas ${p.icon} text-cfcBlue w-4"></i>
-                                        <span class="font-semibold text-slate-700">${p.label}</span>
-                                    </label>
-                                `).join('')}
+                                        <i class="fas ${p.icon} text-cfcBlue w-4"></i><span class="font-semibold text-slate-700">${p.label}</span>
+                                    </label>`).join('')}
                             </div>
                         </div>
-
-                        <button type="submit" class="bg-cfcBlue hover:bg-cfcDarkBlue text-white font-bold px-6 py-2.5 rounded-xl transition shadow">
-                            <i class="fas fa-save mr-1"></i> Criar Utilizador com Permissões Definidas
-                        </button>
+                        <button type="submit" class="bg-cfcBlue hover:bg-cfcDarkBlue text-white font-bold px-6 py-2.5 rounded-xl transition shadow"><i class="fas fa-save mr-1"></i> Criar Utilizador com Permissões Definidas</button>
                     </form>
 
-                    <!-- LISTA DE UTILIZADORES EXISTENTES COM EDIÇÃO DIRETA DE PERMISSÕES -->
                     <div class="bg-white p-6 rounded-2xl shadow space-y-4">
                         <h3 class="font-display text-lg font-bold text-cfcDarkBlue uppercase">Utilizadores Registados & Controlo de Permissões</h3>
                         <div class="space-y-4">
@@ -775,37 +1877,28 @@
                                 <div class="p-4 rounded-xl border ${u.ativo ? 'border-slate-200 bg-slate-50/60' : 'border-red-200 bg-red-50/40'} text-xs space-y-3">
                                     <div class="flex flex-wrap justify-between items-center gap-2">
                                         <div>
-                                            <span class="font-bold text-sm text-cfcDarkBlue">${u.nome}</span>
-                                            <span class="text-slate-500 ml-2">(${u.email})</span>
-                                            <span class="ml-2 px-2 py-0.5 rounded font-bold text-[10px] ${u.isAdmin ? 'bg-cfcBlue text-white' : 'bg-white border text-slate-600'}">${u.cargo}</span>
+                                            <span class="font-bold text-sm text-cfcDarkBlue">${esc(u.nome)}</span>
+                                            <span class="text-slate-500 ml-2">(${esc(u.email)})</span>
+                                            <span class="ml-2 px-2 py-0.5 rounded font-bold text-[10px] ${u.isAdmin ? 'bg-cfcBlue text-white' : 'bg-white border text-slate-600'}">${esc(u.cargo)}</span>
                                         </div>
-                                        ${u.isAdmin ? '<span class="text-[11px] font-bold text-cfcBlue">Acesso Integral (Admin)</span>' : `
+                                        ${u.isAdmin ? `<div class="flex items-center space-x-3"><button onclick="resetPassword(${idx})" class="font-bold text-cfcBlue hover:underline">Alterar palavra-passe</button><span class="text-[11px] font-bold text-cfcBlue">Acesso Integral (Admin)</span></div>` : `
                                             <div class="flex items-center space-x-3">
-                                                <button onclick="toggleUserActive(${idx})" class="font-bold ${u.ativo ? 'text-amber-600' : 'text-green-600'} hover:underline">
-                                                    ${u.ativo ? 'Desativar Conta' : 'Reativar Conta'}
-                                                </button>
+                                                <button onclick="resetPassword(${idx})" class="font-bold text-cfcBlue hover:underline">Alterar palavra-passe</button>
+                                                <button onclick="toggleUserActive(${idx})" class="font-bold ${u.ativo ? 'text-amber-600' : 'text-green-600'} hover:underline">${u.ativo ? 'Desativar Conta' : 'Reativar Conta'}</button>
                                                 <button onclick="deleteBackofficeUser(${idx})" class="font-bold text-red-600 hover:underline">Remover</button>
-                                            </div>
-                                        `}
+                                            </div>`}
                                     </div>
-
                                     ${!u.isAdmin ? `
                                         <div class="flex flex-wrap gap-2 pt-2 border-t border-slate-200">
-                                            ${ALL_PERMISSIONS.filter(p => p.id !== 'usuarios').map(p => {
+                                            ${assignable.map(p => {
                                                 const checked = u.permissoes.includes(p.id);
-                                                return `
-                                                    <button type="button" onclick="toggleUserPermission(${idx}, '${p.id}')"
-                                                        class="px-2.5 py-1 rounded-lg font-semibold transition flex items-center space-x-1 ${checked ? 'bg-cfcBlue text-white' : 'bg-white border border-slate-300 text-slate-500 hover:border-cfcBlue'}">
-                                                        <i class="fas ${checked ? 'fa-check-circle' : 'fa-circle'} text-[10px] mr-1"></i>
-                                                        <span>${p.label}</span>
-                                                    </button>
-                                                `;
+                                                return `<button type="button" onclick="toggleUserPermission(${idx}, '${p.id}')" class="px-2.5 py-1.5 rounded-lg font-semibold transition flex items-center space-x-1 ${checked ? 'bg-cfcBlue text-white' : 'bg-white border border-slate-300 text-slate-500 hover:border-cfcBlue'}"><i class="fas ${checked ? 'fa-check-circle' : 'fa-circle'} text-[10px] mr-1"></i><span>${p.label}</span></button>`;
                                             }).join('')}
-                                        </div>
-                                    ` : ''}
+                                        </div>` : ''}
                                 </div>
                             `).join('')}
                         </div>
+                        <p class="text-[11px] text-slate-400">Nota: nesta versão de demonstração as palavras-passe ficam guardadas no navegador. Em produção, a autenticação deve ser feita num servidor.</p>
                     </div>
                 </div>
             `;
@@ -813,22 +1906,15 @@
 
         function createNewBackofficeUser(e) {
             e.preventDefault();
-            const nome = document.getElementById('new-u-name').value.trim();
-            const email = document.getElementById('new-u-email').value.trim();
-            const senha = document.getElementById('new-u-pass').value.trim();
-            const cargo = document.getElementById('new-u-role').value.trim();
+            const nome = $('new-u-name').value.trim();
+            const email = $('new-u-email').value.trim();
+            const senha = $('new-u-pass').value.trim();
+            const cargo = $('new-u-role').value.trim();
             const perms = Array.from(document.querySelectorAll('input[name="new-u-perms"]:checked')).map(cb => cb.value);
-
-            if (perms.length === 0) return alert("Selecione pelo menos uma área autorizada para este utilizador.");
-            if (usersList.some(u => u.email.toLowerCase() === email.toLowerCase())) return alert("Já existe um utilizador com este e-mail.");
-
-            usersList.push({
-                id: 'usr-' + Date.now(),
-                nome, email, senha, cargo,
-                isAdmin: false,
-                ativo: true,
-                permissoes: perms
-            });
+            if (senha.length < 6) return showBoToast('A palavra-passe deve ter pelo menos 6 caracteres.');
+            if (perms.length === 0) return showBoToast('Selecione pelo menos uma área autorizada para este utilizador.');
+            if (usersList.some(u => u.email.toLowerCase() === email.toLowerCase())) return showBoToast('Já existe um utilizador com este e-mail.');
+            usersList.push({ id: 'usr-' + Date.now(), nome, email, senha, cargo, isAdmin: false, ativo: true, permissoes: perms });
             saveUsers();
             logAudit(`Criou utilizador "${nome}" com permissões: [${perms.join(', ')}]`);
             showBoToast(`Utilizador ${nome} criado com sucesso!`);
@@ -838,11 +1924,7 @@
         function toggleUserPermission(userIdx, permId) {
             const u = usersList[userIdx];
             if (!u || u.isAdmin) return;
-            if (u.permissoes.includes(permId)) {
-                u.permissoes = u.permissoes.filter(p => p !== permId);
-            } else {
-                u.permissoes.push(permId);
-            }
+            u.permissoes = u.permissoes.includes(permId) ? u.permissoes.filter(p => p !== permId) : [...u.permissoes, permId];
             saveUsers();
             logAudit(`Alterou permissões de "${u.nome}" para [${u.permissoes.join(', ')}]`);
             showBoToast(`Permissões de ${u.nome} atualizadas!`);
@@ -857,15 +1939,195 @@
             selectBoTab('usuarios');
         }
 
-        function deleteBackofficeUser(userIdx) {
-            const rem = usersList.splice(userIdx, 1)[0];
+        async function resetPassword(userIdx) {
+            const u = usersList[userIdx];
+            const nova = await uiPrompt('Alterar palavra-passe', `Nova palavra-passe para ${u.nome} (mínimo 6 caracteres).`, { placeholder: 'Nova palavra-passe' });
+            if (nova === null) return;
+            if (nova.trim().length < 6) return showBoToast('Palavra-passe demasiado curta.');
+            u.senha = nova.trim();
             saveUsers();
-            logAudit(`Removeu utilizador "${rem.nome}"`);
+            logAudit(`Alterou a palavra-passe de "${u.nome}"`);
+            showBoToast('Palavra-passe alterada.');
+        }
+
+        async function deleteBackofficeUser(userIdx) {
+            const u = usersList[userIdx];
+            if (!u || u.isAdmin) return;
+            if (!(await uiConfirm('Remover utilizador', `Remover a conta de ${u.nome}? Se só quer bloquear o acesso, use "Desativar Conta".`, { danger: true, okText: 'Remover' }))) return;
+            usersList.splice(userIdx, 1);
+            saveUsers();
+            logAudit(`Removeu utilizador "${u.nome}"`);
             selectBoTab('usuarios');
         }
 
+        // ======================================================================
+        // 11. DEFINIÇÕES & CÓPIA DE SEGURANÇA (EXCLUSIVO ADMIN)
+        // ======================================================================
+        function renderBoDefinicoes(box) {
+            let logs = [];
+            try { logs = JSON.parse(localStorage.getItem(AUDIT_KEY) || '[]'); } catch (e) {}
+            const used = [STORAGE_KEY, USERS_KEY, AUDIT_KEY].reduce((s, k) => s + (localStorage.getItem(k) || '').length, 0);
+            box.innerHTML = `
+                <div class="fade-in space-y-6">
+                    <div class="bg-cfcDarkBlue text-white p-6 rounded-2xl shadow-lg border-b-4 border-cfcAccent">
+                        <h2 class="font-display text-2xl font-bold uppercase">Definições & Cópia de Segurança</h2>
+                        <p class="text-xs text-blue-200 mt-1">Proteja os dados do clube. Os dados deste back-office ficam guardados neste navegador, por isso faça cópias com regularidade.</p>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+                        <div class="bg-white p-5 rounded-2xl shadow space-y-3">
+                            <span class="w-11 h-11 rounded-xl bg-green-100 text-green-700 flex items-center justify-center text-lg"><i class="fas fa-download"></i></span>
+                            <h3 class="font-bold text-sm uppercase text-cfcDarkBlue">Fazer cópia de segurança</h3>
+                            <p class="text-slate-500">Descarrega um ficheiro com sócios, vendas, notícias, utilizadores e auditoria.</p>
+                            <button onclick="backupDownload()" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold rounded-lg py-2.5">Descarregar cópia</button>
+                        </div>
+                        <div class="bg-white p-5 rounded-2xl shadow space-y-3">
+                            <span class="w-11 h-11 rounded-xl bg-blue-100 text-cfcBlue flex items-center justify-center text-lg"><i class="fas fa-upload"></i></span>
+                            <h3 class="font-bold text-sm uppercase text-cfcDarkBlue">Restaurar cópia</h3>
+                            <p class="text-slate-500">Recupera os dados a partir de um ficheiro de cópia. Substitui os dados atuais.</p>
+                            <label class="block w-full text-center bg-cfcBlue hover:bg-cfcDarkBlue text-white font-bold rounded-lg py-2.5 cursor-pointer">Escolher ficheiro<input type="file" accept=".json,application/json" class="hidden" onchange="backupRestore(this)"></label>
+                        </div>
+                        <div class="bg-white p-5 rounded-2xl shadow space-y-3">
+                            <span class="w-11 h-11 rounded-xl bg-red-100 text-red-600 flex items-center justify-center text-lg"><i class="fas fa-trash-restore"></i></span>
+                            <h3 class="font-bold text-sm uppercase text-cfcDarkBlue">Repor dados de demonstração</h3>
+                            <p class="text-slate-500">Apaga vendas, sócios, notícias e mensagens (os utilizadores ficam). Use só para recomeçar os testes.</p>
+                            <button onclick="resetDemo()" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg py-2.5">Repor dados</button>
+                        </div>
+                    </div>
+
+                    <div class="bg-white p-5 rounded-2xl shadow text-xs space-y-1">
+                        <p><strong>Modo demonstração:</strong> ${DEMO_MODE ? '<span class="text-amber-600 font-bold">ligado</span> (logins de teste visíveis)' : '<span class="text-green-600 font-bold">desligado</span>'}</p>
+                        <p><strong>Espaço usado neste navegador:</strong> ${(used / 1024).toFixed(1)} KB</p>
+                        <p><strong>Sessão termina por inatividade:</strong> ${IDLE_MS / 60000} minutos</p>
+                    </div>
+
+                    <div class="bg-white rounded-2xl shadow overflow-x-auto">
+                        <div class="p-4 border-b flex flex-wrap justify-between items-center gap-2">
+                            <h3 class="font-bold text-sm uppercase text-cfcDarkBlue">Registo de auditoria (últimas ${logs.length} ações)</h3>
+                            <button onclick="exportAudit()" class="bg-green-600 hover:bg-green-700 text-white font-bold rounded-lg px-4 py-2 text-xs"><i class="fas fa-file-excel mr-1"></i> Exportar Excel</button>
+                        </div>
+                        <table class="w-full text-left text-xs">
+                            <thead class="bg-slate-50 uppercase text-slate-500"><tr><th class="p-3">Data</th><th class="p-3">Utilizador</th><th class="p-3">Ação</th></tr></thead>
+                            <tbody class="divide-y">${logs.slice(0, 50).map(l => `<tr><td class="p-3 whitespace-nowrap text-slate-400">${esc(l.data)}</td><td class="p-3 font-semibold text-cfcBlue">${esc(l.usuario)}</td><td class="p-3">${esc(l.acao)}</td></tr>`).join('') || '<tr><td colspan="3" class="p-6 text-center text-slate-400">Sem registos.</td></tr>'}</tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+        }
+
+        function backupDownload() {
+            let audit = [];
+            try { audit = JSON.parse(localStorage.getItem(AUDIT_KEY) || '[]'); } catch (e) {}
+            const pack = { app: 'CFC Back-Office', versao: 3, exportadoEm: new Date().toISOString(), dados: loadClubData(), utilizadores: usersList, auditoria: audit };
+            downloadBlob('CFC_Backup_' + todayISO() + '.json', new Blob([JSON.stringify(pack, null, 2)], { type: 'application/json' }));
+            logAudit('Fez uma cópia de segurança');
+            showBoToast('Cópia de segurança descarregada. Guarde-a num local seguro.');
+        }
+
+        async function backupRestore(input) {
+            const f = input.files && input.files[0];
+            if (!f) return;
+            const text = await new Promise(res => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = () => res(''); r.readAsText(f); });
+            let pack = null;
+            try { pack = JSON.parse(text); } catch (e) {}
+            if (!pack || !pack.dados || !Array.isArray(pack.dados.sociosCRM)) { input.value = ''; return showBoToast('Este ficheiro não é uma cópia de segurança válida.'); }
+            const ok = await uiConfirm('Restaurar cópia', `Vai substituir TODOS os dados atuais pelos da cópia de ${pack.exportadoEm ? pack.exportadoEm.slice(0, 10) : 'data desconhecida'}. Continuar?`, { danger: true, okText: 'Restaurar' });
+            input.value = '';
+            if (!ok) return;
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(pack.dados));
+            if (Array.isArray(pack.utilizadores) && pack.utilizadores.some(u => u.isAdmin)) {
+                localStorage.setItem(USERS_KEY, JSON.stringify(pack.utilizadores));
+                usersList = loadUsers();
+                currentUser = usersList.find(u => u.id === currentUser.id && u.ativo) || usersList.find(u => u.isAdmin);
+            }
+            if (Array.isArray(pack.auditoria)) localStorage.setItem(AUDIT_KEY, JSON.stringify(pack.auditoria));
+            logAudit('Restaurou uma cópia de segurança');
+            showBoToast('Cópia restaurada com sucesso!');
+            selectBoTab('definicoes');
+        }
+
+        async function resetDemo() {
+            const t = await uiPrompt('Repor dados', 'Isto apaga vendas, sócios, notícias, multimédia e mensagens, que também são lidos pelo site. Escreva APAGAR para confirmar.', { placeholder: 'APAGAR', okText: 'Repor dados' });
+            if (t === null) return;
+            if (t.trim().toUpperCase() !== 'APAGAR') return showBoToast('Escreva APAGAR para confirmar.');
+            localStorage.removeItem(STORAGE_KEY);
+            localStorage.removeItem(AUDIT_KEY);
+            clubData = loadClubData();
+            logAudit('Repôs os dados de demonstração');
+            showBoToast('Dados repostos.');
+            selectBoTab('definicoes');
+        }
+
+        function exportAudit() {
+            let logs = [];
+            try { logs = JSON.parse(localStorage.getItem(AUDIT_KEY) || '[]'); } catch (e) {}
+            const aoa = [['Data', 'Utilizador', 'Ação'], ...logs.map(l => [l.data, l.usuario, l.acao])];
+            const fmt = saveWorkbook('CFC_Auditoria_' + todayISO(), [{ name: 'Auditoria', aoa, widths: [20, 28, 90] }]);
+            showBoToast(fmt === 'xlsx' ? 'Ficheiro Excel gerado!' : 'Gerado CSV (abre no Excel).');
+        }
+
+        // ======================================================================
+        // ARRANQUE, ATALHOS, GESTOS E INATIVIDADE
+        // ======================================================================
+        let lastAct = Date.now();
+        ['click', 'keydown', 'touchstart', 'mousemove'].forEach(ev => document.addEventListener(ev, () => { lastAct = Date.now(); }, { passive: true }));
+        setInterval(() => {
+            if (currentUser && Date.now() - lastAct > IDLE_MS) logoutBackoffice('Sessão terminada por inatividade (' + (IDLE_MS / 60000) + ' min). Entre novamente.');
+        }, 30000);
+
+        document.addEventListener('keydown', e => {
+            if ((e.ctrlKey || e.metaKey) && String(e.key).toLowerCase() === 'k') {
+                e.preventDefault();
+                if (currentUser) { if ($('palette-bg')) closePalette(); else openPalette(); }
+                return;
+            }
+            if (e.key === 'Escape') {
+                if ($('modal-bg')) closeModal();
+                else if ($('palette-bg')) closePalette();
+                else if (currentUser && !isDesktop() && menuOpen) setMenu(false);
+                return;
+            }
+            const tag = document.activeElement ? document.activeElement.tagName : '';
+            if (e.key === '/' && currentUser && !/INPUT|TEXTAREA|SELECT/.test(tag) && !$('modal-bg')) { e.preventDefault(); openPalette(); }
+        });
+
+        // Deslizar: do bordo esquerdo para a direita abre o menu; para a esquerda fecha (telemóvel)
+        let _tx = 0, _ty = 0;
+        document.addEventListener('touchstart', e => { _tx = e.touches[0].clientX; _ty = e.touches[0].clientY; }, { passive: true });
+        document.addEventListener('touchend', e => {
+            if (!currentUser || isDesktop()) return;
+            const dx = e.changedTouches[0].clientX - _tx, dy = e.changedTouches[0].clientY - _ty;
+            if (Math.abs(dx) < 70 || Math.abs(dy) > 60) return;
+            if (!menuOpen && _tx < 28 && dx > 0) setMenu(true);
+            else if (menuOpen && dx < 0) setMenu(false);
+        }, { passive: true });
+
+        let _wasDesktop = null;
+        window.addEventListener('resize', () => {
+            const d = isDesktop();
+            if (_wasDesktop !== null && d !== _wasDesktop && currentUser) applyMenuForViewport();
+            _wasDesktop = d;
+        });
+
         window.onload = () => {
+            _wasDesktop = isDesktop();
+            if (PUBLIC_SITE_URL) {
+                ['public-site-link-login', 'public-site-link-nav'].forEach(id => {
+                    const a = $(id);
+                    a.href = PUBLIC_SITE_URL; a.classList.remove('hidden');
+                });
+            }
+            if (DEMO_MODE) {
+                $('demo-box').classList.remove('hidden');
+                $('bo-login-user').value = 'admin@carlosfc.ao';
+                $('bo-login-pass').value = 'admin123';
+            }
             renderQuickLogins();
+            try {
+                const sid = sessionStorage.getItem(SESSION_KEY);
+                const u = sid && usersList.find(x => x.id === sid && x.ativo);
+                if (u) { currentUser = u; enterDashboard(true); }
+            } catch (e) {}
         };
     </script>
 </body>
